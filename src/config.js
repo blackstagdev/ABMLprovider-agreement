@@ -66,6 +66,9 @@ export function loadConfig(env = process.env) {
 
     sync: {
       workerEnabled: bool(env.WORKER_ENABLED, true),
+      // Master switch for automatic Shopify writes (init false + pending tag, applying signatures, tag cleanup).
+      // Off until the backfill dry run has been reviewed and applied. `backfill --apply --confirm` writes regardless.
+      shopifyWrites: bool(env.SHOPIFY_WRITES_ENABLED, false),
       reconcileIntervalMinutes: int(env.RECONCILE_INTERVAL_MINUTES, 10),
       statusRecheckSeconds: int(env.STATUS_RECHECK_SECONDS, 5),
     },

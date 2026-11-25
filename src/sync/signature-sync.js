@@ -82,7 +82,11 @@ export function createSignatureSync({ db, ghl, shopify, cfg, enqueue = async () 
     return before.signed === true ? 'already_signed' : 'newly_signed';
   }
 
-  async function applySigned(customerId, contactId) {
+  const writesEnabled = () => cfg.sync.shopifyWrites === true;
+
+  /** @returns {'newly_signed'|'already_signed'|'deferred'} 'deferred' = writes disabled; the signature stays unapplied. */
+  async function applySigned(customerId, contactId, { force = false } = {}) {
+    if (!force && !writesEnabled()) return 'deferred';
     return withCustomerLock(customerId, async (q, after) => {
       const result = await applySignedLocked(q, customerId, after);
       if (contactId) {
@@ -170,6 +174,7 @@ export function createSignatureSync({ db, ghl, shopify, cfg, enqueue = async () 
    * Safe to run late or repeatedly.
    */
   async function initCustomer(customerId) {
+    if (!writesEnabled()) return { outcome: 'skipped_writes_disabled' };
     const customer = await shopify.getCustomer(customerId);
     if (!customer) return { outcome: 'not_found' };
     if (!isProvider(customer, providerTags)) return { outcome: 'not_provider' };
@@ -207,6 +212,7 @@ export function createSignatureSync({ db, ghl, shopify, cfg, enqueue = async () 
   }
 
   async function cleanupTag(customerId) {
+    if (!writesEnabled()) return { outcome: 'skipped_writes_disabled' };
     const c = await shopify.getCustomer(customerId);
     if (c?.signed === true) return { outcome: await applySigned(customerId) };
     return { outcome: 'skipped_not_signed' };
@@ -286,5 +292,6 @@ export function createSignatureSync({ db, ghl, shopify, cfg, enqueue = async () 
     invitation,
     requestResend,
     agreementCfg,
+    writesEnabled,
   };
 }

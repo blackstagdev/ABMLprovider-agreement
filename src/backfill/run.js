@@ -115,7 +115,7 @@ async function processSigner({ s, ev, mode, db, sync, index, record }) {
     const detail = { method: m.method, via: s.via };
     if (m.customer.signed === true && mode === 'dry_run') return record(ev.documentId, s.recipientId, 'already_signed', { ...base, customerId, detail });
     if (mode === 'dry_run') return record(ev.documentId, s.recipientId, 'newly_signed', { ...base, customerId, detail: { ...detail, dryRun: true } });
-    const outcome = await sync.applySigned(customerId, s.contactId);
+    const outcome = await sync.applySigned(customerId, s.contactId, { force: true });
     return record(ev.documentId, s.recipientId, outcome, { ...base, customerId, detail });
   } catch (err) {
     return record(ev.documentId, s.recipientId, 'failed', { ...base, detail: { error: String(err.message).slice(0, 300) } });

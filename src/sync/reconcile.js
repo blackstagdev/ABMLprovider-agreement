@@ -22,15 +22,14 @@ export function createReconciler({ db, ghl, shopify, sync, cfg }) {
     const counts = { applied: 0, waiting: 0 };
     for (const sig of await repo.unappliedSignatures(db)) {
       const m = await sync.matchSigner({ contactId: sig.ghl_contact_id, email: sig.email_normalized });
-      if (m.status === 'matched') {
-        await sync.applySigned(m.customer.id, sig.ghl_contact_id);
-        counts.applied++;
-      } else counts.waiting++;
+      if (m.status === 'matched' && (await sync.applySigned(m.customer.id, sig.ghl_contact_id)) !== 'deferred') counts.applied++;
+      else counts.waiting++;
     }
     return counts;
   }
 
   async function cleanupTags() {
+    if (!sync.writesEnabled()) return 0;
     let cleaned = 0;
     const ids = new Set(await repo.customersNeedingTagCleanup(db));
     for await (const c of shopify.allCustomers(`tag:'${cfg.shopify.pendingTag}'`)) if (c.signed === true) ids.add(c.id);

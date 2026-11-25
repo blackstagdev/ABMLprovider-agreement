@@ -23,7 +23,19 @@ export function createShopifyAdmin({ shop, clientId, clientSecret, staticAccessT
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({ grant_type: 'client_credentials', client_id: clientId, client_secret: clientSecret }),
     });
-    if (!res.ok) throw new Error(`Shopify client credentials grant failed with ${res.status}`);
+    if (!res.ok) {
+      let reason = '';
+      try {
+        reason = (await res.text()).replace(/\s+/g, ' ').slice(0, 200);
+      } catch {}
+      const hint =
+        res.status === 404
+          ? 'store not found at this domain or app not installed: check SHOPIFY_SHOP is the *.myshopify.com domain shown in Shopify admin Settings > Domains, and that the app is installed'
+          : res.status === 400
+            ? 'check the app is installed on this store and belongs to the same Dev Dashboard organization'
+            : '';
+      throw new Error(`Shopify client credentials grant failed with ${res.status} for ${shop}${hint ? ` (${hint})` : ''}${reason && !reason.startsWith('<') ? `: ${reason}` : ''}`);
+    }
     const j = await res.json();
     const expiresAt = Date.now() + (j.expires_in ?? 86399) * 1000;
     cached = { token: j.access_token, expiresAt };

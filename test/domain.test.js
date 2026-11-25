@@ -132,3 +132,9 @@ test('eligibility ignores the pending tag and leaves retail customers alone', ()
   assert.equal(checkoutDecision({ customer: null, providerTags: tags, guestPolicy: 'block' }).allowed, false);
   assert.equal(checkoutDecision({ customer: null, providerTags: tags, guestPolicy: 'allow' }).allowed, true);
 });
+
+test('contact id comes from the recipient id, never links[].referenceId (live GHL shape)', () => {
+  const d = makeDoc({ contactId: 'contact_abc', email: 'a@x.test' });
+  d.links[0].referenceId = 'ref_not_a_contact';
+  assert.equal(evaluateSignatures(d, cfg, verified).signers[0].contactId, 'contact_abc');
+});

@@ -28,6 +28,7 @@ export function testConfig(overrides = {}) {
     GHL_LOCATION_ID: 'loc_1',
     GHL_WEBHOOK_SECRET: 'whsec_test',
     STATUS_RECHECK_SECONDS: '0',
+    SHOPIFY_WRITES_ENABLED: 'true',
     BACKFILL_START_DATE: '2024-01-01T00:00:00Z',
     BACKFILL_WINDOW_DAYS: '90',
     BACKFILL_PAGE_SIZE: '2',

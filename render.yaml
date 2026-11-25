@@ -49,6 +49,8 @@ services:
         value: provider-agreement-resend
       - key: SUPPORT_EMAIL
         value: support@alphabiomedlabs.com
+      - key: SHOPIFY_WRITES_ENABLED   # rollout switch: true only after the backfill is reviewed and applied
+        value: "false"
       - key: BACKFILL_START_DATE
         value: "2020-01-01"
 

@@ -51,8 +51,9 @@ export function providerSigners(doc) {
     .filter(({ link }) => !link || (link.entityName === 'contacts' && (link.recipientCategory ?? 'recipient') === 'recipient'))
     .map(({ r, link }) => ({
       recipientId: r.id,
-      // The recipient id is the GHL contact id for contact recipients; `contactId` is used if present.
-      contactId: r.contactId || link?.referenceId || r.id,
+      // Contact recipients: the recipient `id` is the GHL contact id. (Live data 2026-11-26: links[].referenceId
+      // is NOT the recipient id, so it is never used as the contact id.)
+      contactId: r.contactId || r.id,
       email: r.email || null,
       firstName: r.firstName || null,
       lastName: r.lastName || null,

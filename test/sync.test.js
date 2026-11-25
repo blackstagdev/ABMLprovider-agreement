@@ -327,3 +327,30 @@ test('health endpoint checks the database', async () => {
   const r = await invoke(createApp(ctx), { url: '/healthz' });
   assert.deepEqual([r.status, r.body.ok], [200, true]);
 });
+
+test('SHOPIFY_WRITES_ENABLED off (default): nothing is written; verified signatures wait; backfill apply still writes', async () => {
+  const ctx = await setup({ SHOPIFY_WRITES_ENABLED: 'false' });
+  assert.equal(ctx.cfg.sync.shopifyWrites, false);
+  await seedProvider(ctx, 40, 'c40', 'p40@x.test');
+  ctx.ghlClient.docs.push(makeDoc({ id: 'd40', contactId: 'c40', email: 'p40@x.test', ...SIGNED }));
+
+  // customers/update webhook: accepted, but no init job queued.
+  const body = JSON.stringify({ id: 40, admin_graphql_api_id: gid(40) });
+  const hmac = crypto.createHmac('sha256', ctx.cfg.shopify.clientSecret).update(body).digest('base64');
+  const r = await invoke(createApp(ctx), { method: 'POST', url: '/webhooks/shopify', headers: { 'x-shopify-hmac-sha256': hmac, 'x-shopify-topic': 'customers/update' }, body });
+  assert.equal(r.status, 200);
+  assert.equal((await ctx.jobs.stats()).pending ?? 0, 0);
+  assert.equal((await ctx.sync.initCustomer(gid(40))).outcome, 'skipped_writes_disabled');
+
+  // GHL workflow event: signature verified and recorded, Shopify untouched.
+  await ghlEvent(ctx, { contact_id: 'c40', document_id: 'd40' });
+  await drain(ctx);
+  assert.deepEqual(ctx.shopify.writes, []);
+  const sig = await repo.signatureByContact(ctx.db, 'c40');
+  assert.ok(sig && !sig.applied_at);
+  assert.equal((await ctx.reconciler.applyPending()).applied, 0);
+
+  // Explicit rollout action still writes.
+  assert.equal(await ctx.sync.applySigned(gid(40), 'c40', { force: true }), 'newly_signed');
+  assert.equal(ctx.shopify.customers.get(gid(40)).signed, true);
+});

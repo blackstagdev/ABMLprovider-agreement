@@ -29,6 +29,7 @@ function send(res, status, body, headers = {}) {
 
 export function createApp({ cfg, db, jobs, sync }) {
   const secret = cfg.shopify.clientSecret;
+  let warnedShop = false;
 
   async function proxy(req, res, url, action) {
     const auth = verifyAppProxy(url.searchParams, secret);
@@ -72,8 +73,13 @@ export function createApp({ cfg, db, jobs, sync }) {
         const raw = await readRawBody(req);
         if (!verifyShopifyWebhook(raw, req.headers['x-shopify-hmac-sha256'], secret)) return send(res, 401, 'invalid hmac');
         const topic = req.headers['x-shopify-topic'];
+        const webhookShop = req.headers['x-shopify-shop-domain'];
+        if (webhookShop && cfg.shopify.shop && webhookShop !== cfg.shopify.shop && !warnedShop) {
+          warnedShop = true;
+          log.warn('webhook store domain differs from SHOPIFY_SHOP; set SHOPIFY_SHOP to the webhook domain', { webhookShop, configuredShop: cfg.shopify.shop });
+        }
         const body = JSON.parse(raw.toString('utf8') || '{}');
-        if (topic === 'customers/create' || topic === 'customers/update') {
+        if ((topic === 'customers/create' || topic === 'customers/update') && cfg.sync.shopifyWrites) {
           const id = body.admin_graphql_api_id || `gid://shopify/Customer/${body.id}`;
           await jobs.enqueue('init_customer', { customerId: id }, `init_customer:${id}`, { delaySeconds: topic === 'customers/create' ? 5 : 0 });
         } else if (topic === 'customers/redact') {

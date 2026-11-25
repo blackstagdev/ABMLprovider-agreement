@@ -16,7 +16,7 @@ The full brief is in [Antigravity_ABM_Provider_Agreement.md](Antigravity_ABM_Pro
 
 ```bash
 npm ci
-npm test                                   # 76 local tests (PGlite Postgres + jsdom; no network)
+npm test                                   # 78 local tests (PGlite Postgres + jsdom; no network)
 npm run build                              # syntax check (Render build step)
 npm run migrate                            # apply migrations/*.sql
 npm start                                  # HTTP + worker + 10-min reconciler
@@ -71,5 +71,6 @@ Reports are written to `reports/`, which is gitignored. The CSVs contain only ID
 3. [ ] Fill in the `decision` column of `*-unresolved-review.csv`, run `npm run mapping:import`, then run the dry run again.
 4. [ ] Resolve the ambiguous, missing and failed rows in GHL or Shopify, then run the dry run again.
 5. [ ] **Apply:** `npm run backfill -- --apply --confirm`.
-6. [ ] On a development store or test customers, run the cases in CLAUDE.md under "Needs a dev store". Check embedded signing on desktop and mobile Safari and Chrome.
-7. [ ] **Enforce:** `npm run validation -- enable --confirm`. Roll back with `disable`.
+6. [ ] In Render, set `SHOPIFY_WRITES_ENABLED=true` and redeploy. Ongoing sync then writes to Shopify; until then it only records verified signatures.
+7. [ ] On a development store or test customers, run the cases in CLAUDE.md under "Needs a dev store". Check embedded signing on desktop and mobile Safari and Chrome.
+8. [ ] **Enforce:** `npm run validation -- enable --confirm`. Roll back with `disable`.

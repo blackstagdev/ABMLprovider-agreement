@@ -83,3 +83,30 @@ for (const status of ['completed', 'sent,viewed']) {
   console.log(`  recipient id equals a links referenceId: ${rawSigners.filter((r) => docs.some((d) => (d.links ?? []).some((l) => l.referenceId === r.id))).length}/${rawSigners.length}`);
   console.log(`  expired: ${docs.filter((d) => d.isExpired).length}, statuses: ${[...new Set(docs.map((d) => d.status))].join(', ')}`);
 }
+
+// ---- Which field is the GHL contact id? (counts only) ----
+{
+  const { normalizeEmail } = await import('../domain/identity.js');
+  const r = await ghl.listDocuments({ status: 'completed', limit: 20, skip: 0, query: cfg.ghl.agreementName });
+  const docs = (r?.documents ?? []).filter((d) => normalizeName(d.name) === target).slice(0, 8);
+  const tally = { checked: 0, linkRecipientIdMatches: 0, idIsContact: 0, idContactEmailMatches: 0, referenceIdIsContact: 0 };
+  for (const d of docs) {
+    const rec = (d.recipients ?? []).find((x) => x.role === 'signer');
+    if (!rec) continue;
+    tally.checked++;
+    const link = (d.links ?? []).find((l) => l.recipientId === rec.id);
+    if (link) tally.linkRecipientIdMatches++;
+    const byId = await ghl.getContact(rec.id).catch(() => null);
+    if (byId) {
+      tally.idIsContact++;
+      if (normalizeEmail(byId.email) && normalizeEmail(byId.email) === normalizeEmail(rec.email)) tally.idContactEmailMatches++;
+    }
+    const refId = link?.referenceId ?? (d.links ?? [])[0]?.referenceId;
+    if (refId && (await ghl.getContact(refId).catch(() => null))) tally.referenceIdIsContact++;
+  }
+  console.log('\n[contact id check on completed agreements]');
+  console.log(`  signers checked: ${tally.checked}`);
+  console.log(`  links[].recipientId == recipient.id: ${tally.linkRecipientIdMatches}`);
+  console.log(`  recipient.id is a GHL contact: ${tally.idIsContact} (same email: ${tally.idContactEmailMatches})`);
+  console.log(`  links[].referenceId is a GHL contact: ${tally.referenceIdIsContact}`);
+}
