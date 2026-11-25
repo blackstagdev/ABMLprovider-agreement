@@ -79,4 +79,4 @@ Path: `D:\ABM blackfriday\theme_export__alphabiomedlabs-com-refresh__23NOV2026-0
 6. `REQUIRE_SIGNED_DATE=true`. Turn it off only if live completed signers lack `signedDate`.
 
 ## Last verified milestone
-2026-11-25: full implementation committed on branch `feature/provider-agreement-sync`, 67/67 local tests passing. No Git remote configured and no GHL/Shopify credentials in this environment. **The real dry-run backfill has NOT been run yet**, because it needs GHL and Shopify credentials.
+2026-11-25: full implementation on branch `feature/provider-agreement-sync`, pushed to `origin` = https://github.com/blackstagdev/ABMLprovider-agreement.git (it is the repo's only branch, so it is currently the GitHub default; no `main` yet). 67/67 local tests passing. No GHL/Shopify credentials in this environment. **The real dry-run backfill has NOT been run yet**, because it needs GHL and Shopify credentials.
