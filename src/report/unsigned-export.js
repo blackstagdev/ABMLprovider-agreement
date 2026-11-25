@@ -10,6 +10,7 @@ export const STATUS = {
   no_agreement: 'GHL contact found, no agreement sent',
   no_ghl_contact: 'No GHL contact with this email',
   no_email: 'Shopify customer has no email',
+  lookup_failed: 'GHL search failed for this email',
 };
 
 export const ACTION = {
@@ -19,6 +20,7 @@ export const ACTION = {
   no_agreement: 'Send the agreement: move the opportunity to stage "Send Document" (or add tag provider-agreement-resend).',
   no_ghl_contact: 'Find the provider in GHL (maybe under another email) and align the emails, or create the contact.',
   no_email: 'Add an email to the Shopify customer so it can be matched to GHL.',
+  lookup_failed: 'Check the Shopify email (likely malformed) and search for the provider in GHL manually.',
 };
 
 const RANK = ['newly_signed', 'already_signed', 'ambiguous', 'missing', 'failed', 'unresolved', 'not_signed'];
@@ -119,8 +121,14 @@ export async function buildExport({ customers, facts, providerTags, lookupContac
   let done = 0;
   for (const c of unfilled) {
     const linked = facts.links.get(c.id);
-    const contacts = linked ? [(await getContact(linked)) ?? { id: linked }] : await lookupContacts(c);
-    const status = classify(c, contacts, facts);
+    let contacts = [];
+    let lookupFailed = false;
+    try {
+      contacts = linked ? [(await getContact(linked)) ?? { id: linked }] : await lookupContacts(c);
+    } catch {
+      lookupFailed = true; // e.g. GHL 400 on a malformed email; keep going
+    }
+    const status = lookupFailed ? 'lookup_failed' : classify(c, contacts, facts);
     byStatus[status]++;
     const f = contacts.map((x) => facts.byContact.get(x.id)).filter(Boolean);
     const main = contacts[0] ?? null;

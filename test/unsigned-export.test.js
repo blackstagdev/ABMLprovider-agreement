@@ -41,17 +41,22 @@ test('export classifies unfilled providers and counts filled customers', async (
     cust(6, null, ['wholesale'], null),
     cust(7, 'retail@x.test', [], null),
     cust(8, 'retailsigned@x.test', ['dose'], true),
+    cust(9, 'bad@email', ['wholesale'], null),
   ];
   const r = await buildExport({
     customers,
     facts,
     providerTags: ['wholesale'],
-    lookupContacts: async (c) => contactsByEmail[c.email] ?? [],
+    lookupContacts: async (c) => {
+      if (c.email === 'bad@email') throw new Error('GHL 400');
+      return contactsByEmail[c.email] ?? [];
+    },
     getContact: async (id) => (id === 'cMiss' ? { id, email: 'miss@x.test', firstName: 'M' } : null),
     links: { shopifyCustomer: (id) => `s/${id}`, ghlContact: (id) => `g/${id}` },
   });
 
-  assert.deepEqual(r.counts, { customers: 8, signedTrue: 2, providers: 6, providerTrue: 1, providerFalse: 1, providerMissing: 4, signedNotProvider: 1 });
+  assert.deepEqual(r.counts, { customers: 9, signedTrue: 2, providers: 7, providerTrue: 1, providerFalse: 1, providerMissing: 5, signedNotProvider: 1 });
+  assert.equal(r.byStatus.lookup_failed, 1);
   const status = Object.fromEntries(r.notFilled.map((x) => [x.shopifyCustomerId, x.status]));
   assert.equal(status['2'], STATUS.sent_not_signed);
   assert.equal(status['3'], STATUS.needs_review);
