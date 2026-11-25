@@ -118,3 +118,24 @@ test('logger redacts PII, tokens and signing links', () => {
   const out = redact({ email: 'a@x.test', shareLink: 'https://x', nested: { firstName: 'A', documentId: 'd1' }, access_token: 't' });
   assert.deepEqual(out, { email: '[redacted]', shareLink: '[redacted]', nested: { firstName: '[redacted]', documentId: 'd1' }, access_token: '[redacted]' });
 });
+
+test('GHL: 422 errors carry GHL’s reason, with emails masked', async () => {
+  const body = { statusCode: 422, message: ['limit must not be greater than 50', 'bad value a.b@clinic.test'], error: 'Unprocessable Entity' };
+  const c = createGhlClient({ token: 't', locationId: 'l', requestsPerSecond: 1000, fetchImpl: async () => json(body, 422) });
+  await assert.rejects(c.listDocuments({ limit: 100 }), (e) => {
+    assert.equal(e.status, 422);
+    assert.match(e.message, /failed with 422: limit must not be greater than 50; bad value \[email\]/);
+    assert.ok(!e.message.includes('clinic.test'));
+    return true;
+  });
+});
+
+test('GHL: email search pages by documents returned, not a fixed 100', async () => {
+  const { createGhlService } = await import('../src/ghl/service.js');
+  const all = Array.from({ length: 7 }, (_, i) => ({ documentId: `d${i}` }));
+  const seen = [];
+  const client = { listDocuments: async ({ limit, skip }) => (seen.push([limit, skip]), { documents: all.slice(skip, skip + limit), total: all.length }) };
+  const docs = await createGhlService(client, { pageSize: 3 }).documentsForEmail('a@x.test');
+  assert.equal(docs.length, 7);
+  assert.deepEqual(seen, [[3, 0], [3, 3], [3, 6]]);
+});

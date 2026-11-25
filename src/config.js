@@ -41,6 +41,8 @@ export function loadConfig(env = process.env) {
       requireSignedDate: bool(env.REQUIRE_SIGNED_DATE, true),
       recentLookbackDays: int(env.GHL_RECENT_LOOKBACK_DAYS, 120),
       requestsPerSecond: int(env.GHL_REQUESTS_PER_SECOND, 8),
+      // Documents per /proposals/document request. GHL doesn't document a maximum; lower it if GHL returns 422.
+      pageSize: int(env.GHL_PAGE_SIZE, 100),
     },
 
     recovery: {
@@ -54,7 +56,7 @@ export function loadConfig(env = process.env) {
     backfill: {
       startDate: env.BACKFILL_START_DATE || '2020-01-01',
       windowDays: int(env.BACKFILL_WINDOW_DAYS, 31),
-      pageSize: int(env.BACKFILL_PAGE_SIZE, 100),
+      pageSize: int(env.BACKFILL_PAGE_SIZE, int(env.GHL_PAGE_SIZE, 100)),
     },
 
     sync: {

@@ -3,6 +3,28 @@ import { GHL_API_BASE, GHL_CONTACTS_VERSION, GHL_DOCUMENTS_VERSION } from '../co
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+/**
+ * GHL's explanation for a failed request (validation messages, e.g. on 422), safe to log:
+ * emails are masked and the text is truncated. Never includes request data we sent.
+ */
+export async function errorReason(res) {
+  let text = '';
+  try {
+    text = await res.text();
+  } catch {
+    return '';
+  }
+  let msg = text;
+  try {
+    const j = JSON.parse(text);
+    const m = j.message ?? j.msg ?? j.error ?? j.errors;
+    msg = Array.isArray(m) ? m.map((x) => (typeof x === 'string' ? x : JSON.stringify(x))).join('; ') : typeof m === 'string' ? m : JSON.stringify(m ?? j);
+  } catch {
+    /* not JSON */
+  }
+  return msg.replace(/[^\s@"']+@[^\s@"']+\.[^\s@"']+/g, '[email]').replace(/\s+/g, ' ').trim().slice(0, 300);
+}
+
 export function createGhlClient({ token, locationId, requestsPerSecond = 8, fetchImpl = fetch, baseUrl = GHL_API_BASE }) {
   let nextSlot = 0;
   const gap = Math.ceil(1000 / Math.max(1, requestsPerSecond));
@@ -32,8 +54,10 @@ export function createGhlClient({ token, locationId, requestsPerSecond = 8, fetc
         await sleep(Number.isFinite(ra) && ra > 0 ? ra * 1000 : 500 * 2 ** attempt);
         continue;
       }
-      const err = new Error(`GHL ${method} ${url.pathname} failed with ${res.status}`);
+      const reason = await errorReason(res);
+      const err = new Error(`GHL ${method} ${url.pathname} failed with ${res.status}${reason ? `: ${reason}` : ''}`);
       err.status = res.status;
+      err.ghlReason = reason;
       throw err;
     }
   }

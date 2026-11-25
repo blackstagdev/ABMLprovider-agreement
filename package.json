@@ -18,7 +18,8 @@
     "validation": "node src/cli/validation.js",
     "shopify": "shopify",
     "inspect:identity": "node src/cli/inspect-identity.js",
-    "build:gate": "node scripts/build-gate.js"
+    "build:gate": "node scripts/build-gate.js",
+    "ghl:probe": "node src/cli/ghl-probe.js"
   },
   "dependencies": {
     "pg": "8.16.3"

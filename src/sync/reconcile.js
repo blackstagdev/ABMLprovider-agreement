@@ -9,7 +9,7 @@ export function createReconciler({ db, ghl, shopify, sync, cfg }) {
     const to = new Date();
     const from = new Date(to.getTime() - cfg.ghl.recentLookbackDays * 86400_000);
     let recorded = 0;
-    for await (const page of ghl.pages({ dateFrom: from.toISOString(), dateTo: to.toISOString(), pageSize: 100 })) {
+    for await (const page of ghl.pages({ dateFrom: from.toISOString(), dateTo: to.toISOString(), pageSize: cfg.ghl.pageSize })) {
       for (const ev of await sync.evaluateDocs(db, page.documents)) {
         for (const s of ev.signers) if (s.outcome === 'signed' && (await repo.recordSignature(db, s))) recorded++;
       }

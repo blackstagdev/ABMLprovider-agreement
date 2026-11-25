@@ -21,6 +21,7 @@ npm run build                              # syntax check (Render build step)
 npm run migrate                            # apply migrations/*.sql
 npm start                                  # HTTP + worker + 10-min reconciler
 
+npm run ghl:probe                          # READ-ONLY: diagnose GHL API access (status + GHL's reason)
 npm run inspect:identity                   # READ-ONLY: find where GHL/Shopify cross-IDs are stored
 npm run backfill                           # DRY RUN: report only, no Shopify writes
 npm run backfill -- --resume <runId>       # resume a specific run (failed runs resume automatically)

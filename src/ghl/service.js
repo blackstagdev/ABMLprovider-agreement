@@ -3,6 +3,7 @@ import { normalizeEmail } from '../domain/identity.js';
 
 export function createGhlService(client, cfg) {
   const contactCache = new Map();
+  const pageSize = cfg.pageSize ?? 100;
 
   function toContact(c) {
     if (!c) return null;
@@ -39,9 +40,10 @@ export function createGhlService(client, cfg) {
     async documentsForEmail(email, maxPages = 5) {
       const docs = [];
       for (let page = 0; page < maxPages; page++) {
-        const r = await client.listDocuments({ query: email, limit: 100, skip: page * 100 });
-        docs.push(...(r?.documents ?? []));
-        if (docs.length >= (r?.total ?? 0) || !(r?.documents ?? []).length) break;
+        const r = await client.listDocuments({ query: email, limit: pageSize, skip: docs.length });
+        const batch = r?.documents ?? [];
+        docs.push(...batch);
+        if (!batch.length || docs.length >= (r?.total ?? 0)) break;
       }
       return docs;
     },
