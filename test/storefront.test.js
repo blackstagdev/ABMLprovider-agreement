@@ -13,7 +13,7 @@ const locale = JSON.parse(await readFile(new URL('../extensions/provider-agreeme
 const text = {
   title: locale.title, intro: locale.intro, signingAs: locale.signing_as, openNewTab: locale.open_new_tab, checkAgain: locale.check_again,
   continueShopping: locale.continue_shopping, confirming: locale.confirming, confirmed: locale.confirmed, notYet: locale.not_yet, loading: locale.loading,
-  frameHelp: locale.frame_help, pendingInvite: locale.pending_invite, expired: locale.expired, requestLink: locale.request_link, requested: locale.requested,
+  frameHelp: locale.frame_help, checkEmail: locale.check_email, pendingInvite: locale.pending_invite, expired: locale.expired, requestLink: locale.request_link, requested: locale.requested,
   alreadyRequested: locale.already_requested, support: locale.support, error: locale.error, expressUnlocked: locale.express_unlocked, shieldLabel: locale.shield_label,
 };
 
@@ -224,4 +224,17 @@ test('shipped asset is the current minified build and under the 10 KB theme-chec
   const expected = await buildGate();
   assert.equal(src, expected, 'run npm run build:gate');
   assert.ok(Buffer.byteLength(src) <= 10_000);
+});
+
+test('open invitation without a signing link: sign-from-email guidance, still polling', async () => {
+  const { window, doc, server, api, submits } = setupDom();
+  server.agreement = { status: 'no_link', prefill: {} };
+  click(window, doc.getElementById('checkout'));
+  await tick(10);
+  const m = modal(doc);
+  assert.equal(m.querySelector('iframe'), null);
+  assert.match(m.querySelector('.abm-ag__help').textContent, /email from Alpha BioMed Support/);
+  server.status = { required: true, signed: true };
+  await api.recheck(true);
+  assert.deepEqual(submits, ['checkout']);
 });

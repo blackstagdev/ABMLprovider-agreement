@@ -139,3 +139,15 @@ test('GHL: email search pages by documents returned, not a fixed 100', async () 
   assert.equal(docs.length, 7);
   assert.deepEqual(seen, [[3, 0], [3, 3], [3, 6]]);
 });
+
+test('GHL: limit is always sent and capped at the live maximum of 20', async () => {
+  const limits = [];
+  const c = createGhlClient({ token: 't', locationId: 'l', requestsPerSecond: 1000, fetchImpl: async (url) => (limits.push(new URL(url).searchParams.get('limit')), json({ documents: [], total: 0 })) });
+  await c.listDocuments();
+  await c.listDocuments({ limit: 100 });
+  await c.listDocuments({ limit: 5 });
+  assert.deepEqual(limits, ['20', '20', '5']);
+  const { loadConfig } = await import('../src/config.js');
+  assert.equal(loadConfig({ GHL_PAGE_SIZE: '100' }).ghl.pageSize, 20);
+  assert.equal(loadConfig({}).backfill.pageSize, 20);
+});

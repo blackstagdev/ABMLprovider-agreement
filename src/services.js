@@ -29,6 +29,11 @@ export function wireServices({ cfg, db, ghlClient, shopifyAdmin }) {
     init_customer: (p) => sync.initCustomer(p.customerId),
     cleanup_tag: (p) => sync.cleanupTag(p.customerId),
     reconcile: () => reconciler.run(),
+    reconcile_deep: async () => {
+      const r = await reconciler.run({ deep: true });
+      if (r.skipped) throw new Error('reconcile already running; deep scan will retry'); // don't count as the daily run
+      return r;
+    },
   };
   return { cfg, db, ghl, shopify, jobs, sync, reconciler, handlers, shopifyAdmin };
 }

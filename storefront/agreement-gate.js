@@ -345,6 +345,10 @@
             newTabBtn.setAttribute('href', a.signingUrl);
             newTabBtn.removeAttribute('hidden');
             helpEl.textContent = t.frameHelp;
+          } else if (a.status === 'no_link') {
+            // Open invitation but GHL exposes no signing URL: sign from the email; we detect it automatically.
+            helpEl.textContent = t.checkEmail;
+            requestBtn.removeAttribute('hidden');
           } else if (a.status === 'pending_invite' || a.status === 'not_found') {
             helpEl.textContent = t.pendingInvite;
             requestBtn.removeAttribute('hidden');

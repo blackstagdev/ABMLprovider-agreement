@@ -3,7 +3,7 @@ import { normalizeEmail } from '../domain/identity.js';
 
 export function createGhlService(client, cfg) {
   const contactCache = new Map();
-  const pageSize = cfg.pageSize ?? 100;
+  const pageSize = cfg.pageSize ?? 20;
 
   function toContact(c) {
     if (!c) return null;
@@ -37,7 +37,7 @@ export function createGhlService(client, cfg) {
       return (await this.contactsWithEmail(email)).length;
     },
     /** All documents mentioning this email (GHL `query` search), across pages. */
-    async documentsForEmail(email, maxPages = 5) {
+    async documentsForEmail(email, maxPages = 10) {
       const docs = [];
       for (let page = 0; page < maxPages; page++) {
         const r = await client.listDocuments({ query: email, limit: pageSize, skip: docs.length });

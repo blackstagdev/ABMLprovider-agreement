@@ -3,6 +3,7 @@
 // shows what GHL rejects. Prints HTTP status, GHL's reason (emails masked) and document totals only.
 import { loadConfig, requireKeys } from '../config.js';
 import { createGhlClient } from '../ghl/client.js';
+import { normalizeName, providerSigners } from '../domain/agreement.js';
 
 const cfg = loadConfig();
 requireKeys(cfg, ['ghl.token', 'ghl.locationId']);
@@ -14,11 +15,7 @@ const iso = (d) => d.toISOString();
 const isoNoMs = (d) => d.toISOString().replace(/\.\d{3}Z$/, 'Z');
 
 const probes = [
-  ['location only (no paging params)', {}],
-  ['limit=10 skip=0', { limit: 10, skip: 0 }],
-  ['limit=20', { limit: 20, skip: 0 }],
-  ['limit=50', { limit: 50, skip: 0 }],
-  ['limit=100 (app default)', { limit: 100, skip: 0 }],
+  ['limit=20 (app default, GHL maximum)', { limit: 20, skip: 0 }],
   ['dates: last 7 days, limit=10', { limit: 10, skip: 0, dateFrom: iso(daysAgo(7)), dateTo: iso(now) }],
   [`dates: last ${cfg.ghl.recentLookbackDays} days, limit=10 (reconcile window)`, { limit: 10, skip: 0, dateFrom: iso(daysAgo(cfg.ghl.recentLookbackDays)), dateTo: iso(now) }],
   ['dates without milliseconds, last 7 days', { limit: 10, skip: 0, dateFrom: isoNoMs(daysAgo(7)), dateTo: isoNoMs(now) }],
@@ -46,4 +43,43 @@ if (firstDoc) {
   console.log('\nDocument fields:', Object.keys(firstDoc).sort().join(', '));
   console.log('Has template id field:', ['templateId', 'template_id', 'template'].filter((k) => k in firstDoc).join(', ') || 'none');
   console.log('Recipient fields:', Object.keys(r0).sort().join(', '));
+}
+
+// ---- Agreement documents: what a real signature and an open invitation look like ----
+// Counts and field names only. Scans up to 10 pages (200 docs) per status.
+const target = normalizeName(cfg.ghl.agreementName);
+async function sampleAgreements(status, pages = 10) {
+  const out = [];
+  for (let p = 0; p < pages; p++) {
+    let r;
+    try {
+      r = await ghl.listDocuments({ status, limit: 20, skip: p * 20, query: cfg.ghl.agreementName });
+    } catch (e) {
+      console.log(`FAIL sampling ${status}: HTTP ${e.status ?? '?'} ${e.ghlReason || e.message}`);
+      break;
+    }
+    const docs = r?.documents ?? [];
+    out.push(...docs.filter((d) => normalizeName(d.name) === target));
+    if (docs.length < 20) break;
+  }
+  return out;
+}
+const keysOf = (objs) => [...new Set(objs.flatMap((o) => Object.keys(o ?? {})))].sort().join(', ');
+
+for (const status of ['completed', 'sent,viewed']) {
+  const docs = await sampleAgreements(status);
+  const signers = docs.flatMap((d) => providerSigners(d));
+  const rawSigners = docs.flatMap((d) => (d.recipients ?? []).filter((r) => r.role === 'signer'));
+  const done = signers.filter((s) => s.hasCompleted);
+  console.log(`
+[${status}] exact-name "${cfg.ghl.agreementName}" documents sampled: ${docs.length}`);
+  if (!docs.length) continue;
+  console.log(`  contact signers: ${signers.length}, completed: ${done.length}, with signedDate: ${done.filter((s) => s.signedDate).length}`);
+  console.log(`  signer recipients with shareLink: ${rawSigners.filter((r) => r.shareLink).length}/${rawSigners.length}`);
+  console.log(`  signer recipient fields (union): ${keysOf(rawSigners)}`);
+  console.log(`  recipient roles: ${[...new Set(docs.flatMap((d) => (d.recipients ?? []).map((r) => r.role)))].join(', ')}`);
+  console.log(`  links fields: ${keysOf(docs.flatMap((d) => d.links ?? []))}`);
+  console.log(`  links entityName/category: ${[...new Set(docs.flatMap((d) => (d.links ?? []).map((l) => `${l.entityName}/${l.recipientCategory}`)))].join(', ')}`);
+  console.log(`  recipient id equals a links referenceId: ${rawSigners.filter((r) => docs.some((d) => (d.links ?? []).some((l) => l.referenceId === r.id))).length}/${rawSigners.length}`);
+  console.log(`  expired: ${docs.filter((d) => d.isExpired).length}, statuses: ${[...new Set(docs.map((d) => d.status))].join(', ')}`);
 }

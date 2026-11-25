@@ -13,6 +13,7 @@
     "frame_help": "If the agreement doesn't appear above, open it in a new tab. We'll check for your signature when you come back.",
     "pending_invite": "Your agreement invitation is on its way from Alpha BioMed Support. Please check your email shortly.",
     "expired": "Your agreement link has expired or is unavailable.",
+    "check_email": "Please sign using the “Alpha BioMed Provider Agreement” email from Alpha BioMed Support. Keep this window open — we’ll continue to checkout as soon as your signature is confirmed.",
     "request_link": "Email me a new agreement link",
     "requested": "Request received. A new agreement link will be emailed to you shortly.",
     "already_requested": "A new link was already requested recently. Please check your email.",

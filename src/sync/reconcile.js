@@ -5,9 +5,10 @@ import { log } from '../log.js';
 import { repo } from './repo.js';
 
 export function createReconciler({ db, ghl, shopify, sync, cfg }) {
-  async function scanRecent() {
+  /** Record verified signatures from documents in the last `days` (default: light window). */
+  async function scanRecent(days = cfg.ghl.recentLookbackDays) {
     const to = new Date();
-    const from = new Date(to.getTime() - cfg.ghl.recentLookbackDays * 86400_000);
+    const from = new Date(to.getTime() - days * 86400_000);
     let recorded = 0;
     for await (const page of ghl.pages({ dateFrom: from.toISOString(), dateTo: to.toISOString(), pageSize: cfg.ghl.pageSize })) {
       for (const ev of await sync.evaluateDocs(db, page.documents)) {
@@ -41,14 +42,15 @@ export function createReconciler({ db, ghl, shopify, sync, cfg }) {
   }
 
   /** Single-flight across instances via a session-level advisory lock held in a transaction. */
-  async function run() {
+  async function run({ deep = false } = {}) {
     return db.tx(async (q) => {
       const got = (await q.query('SELECT pg_try_advisory_xact_lock($1) AS ok', [lockKey('reconcile')])).rows[0]?.ok;
       if (!got) return { skipped: true };
-      const recorded = await scanRecent();
+      const days = deep ? cfg.ghl.deepLookbackDays : cfg.ghl.recentLookbackDays;
+      const recorded = await scanRecent(days);
       const pending = await applyPending();
       const cleaned = await cleanupTags();
-      const result = { recorded, ...pending, cleaned };
+      const result = { deep, days, recorded, ...pending, cleaned };
       log.info('reconcile complete', result);
       return result;
     });

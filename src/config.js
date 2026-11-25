@@ -4,6 +4,8 @@ export const SHOPIFY_API_VERSION = '2026-10'; // pinned Admin GraphQL API versio
 export const GHL_API_BASE = 'https://services.leadconnectorhq.com';
 export const GHL_DOCUMENTS_VERSION = 'v3'; // Version header documented for /proposals/*
 export const GHL_CONTACTS_VERSION = '2021-07-28';
+// Live API (2026-11-26 probe): GET /proposals/document rejects limit > 20 and requires limit.
+export const GHL_DOCUMENTS_MAX_LIMIT = 20;
 
 const list = (v, fallback) =>
   (v ?? fallback).split(',').map((s) => s.trim()).filter(Boolean);
@@ -39,10 +41,13 @@ export function loadConfig(env = process.env) {
       shopifyIdCustomFieldId: env.GHL_SHOPIFY_CUSTOMER_ID_FIELD_ID || null,
       webhookSecret: env.GHL_WEBHOOK_SECRET,
       requireSignedDate: bool(env.REQUIRE_SIGNED_DATE, true),
-      recentLookbackDays: int(env.GHL_RECENT_LOOKBACK_DAYS, 120),
+      // Light scan every RECONCILE_INTERVAL_MINUTES; full scan once a day (GHL date filters may be on creation date,
+      // so a document created weeks ago and signed today is caught by the deep scan or the workflow event).
+      recentLookbackDays: int(env.GHL_RECENT_LOOKBACK_DAYS, 14),
+      deepLookbackDays: int(env.GHL_DEEP_LOOKBACK_DAYS, 120),
       requestsPerSecond: int(env.GHL_REQUESTS_PER_SECOND, 8),
-      // Documents per /proposals/document request. GHL doesn't document a maximum; lower it if GHL returns 422.
-      pageSize: int(env.GHL_PAGE_SIZE, 100),
+      // Documents per /proposals/document request (GHL rejects more than 20).
+      pageSize: Math.min(int(env.GHL_PAGE_SIZE, 20), 20),
     },
 
     recovery: {
@@ -56,7 +61,7 @@ export function loadConfig(env = process.env) {
     backfill: {
       startDate: env.BACKFILL_START_DATE || '2020-01-01',
       windowDays: int(env.BACKFILL_WINDOW_DAYS, 31),
-      pageSize: int(env.BACKFILL_PAGE_SIZE, int(env.GHL_PAGE_SIZE, 100)),
+      pageSize: Math.min(int(env.BACKFILL_PAGE_SIZE, int(env.GHL_PAGE_SIZE, 20)), 20),
     },
 
     sync: {

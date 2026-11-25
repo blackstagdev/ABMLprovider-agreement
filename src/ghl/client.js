@@ -1,5 +1,5 @@
 // HighLevel (LeadConnector) REST client: throttled, retries 429/5xx, never logs payloads.
-import { GHL_API_BASE, GHL_CONTACTS_VERSION, GHL_DOCUMENTS_VERSION } from '../config.js';
+import { GHL_API_BASE, GHL_CONTACTS_VERSION, GHL_DOCUMENTS_MAX_LIMIT, GHL_DOCUMENTS_VERSION } from '../config.js';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -65,10 +65,12 @@ export function createGhlClient({ token, locationId, requestsPerSecond = 8, fetc
   return {
     locationId,
     /** GET /proposals/document — paginated with limit/skip, `total` in response. */
-    listDocuments({ limit = 100, skip = 0, status, query, dateFrom, dateTo } = {}) {
+    listDocuments({ limit = GHL_DOCUMENTS_MAX_LIMIT, skip = 0, status, query, dateFrom, dateTo } = {}) {
+      // limit is required by the live API and capped at 20.
+      const capped = Math.max(1, Math.min(Number(limit) || GHL_DOCUMENTS_MAX_LIMIT, GHL_DOCUMENTS_MAX_LIMIT));
       return request('GET', '/proposals/document', {
         version: GHL_DOCUMENTS_VERSION,
-        query: { locationId, limit, skip, status, query, dateFrom, dateTo },
+        query: { locationId, limit: capped, skip, status, query, dateFrom, dateTo },
       });
     },
     async getContact(contactId) {

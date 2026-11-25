@@ -17,7 +17,16 @@ let timer = null;
 if (s.cfg.sync.workerEnabled) {
   stopWorker = startWorker(s.jobs, s.handlers);
   const every = s.cfg.sync.reconcileIntervalMinutes * 60_000;
-  const tick = () => s.jobs.enqueue('reconcile', {}, 'reconcile').catch((err) => log.error('enqueue reconcile failed', { err }));
+  const tick = async () => {
+    try {
+      await s.jobs.enqueue('reconcile', {}, 'reconcile');
+      // Full lookback once a day (survives restarts: based on the last completed deep run).
+      const r = await s.db.query(`SELECT 1 FROM sync_jobs WHERE type = 'reconcile_deep' AND (status IN ('pending','running') OR (status = 'done' AND updated_at > now() - interval '24 hours')) LIMIT 1`);
+      if (!r.rows.length) await s.jobs.enqueue('reconcile_deep', {}, 'reconcile_deep');
+    } catch (err) {
+      log.error('enqueue reconcile failed', { err });
+    }
+  };
   timer = setInterval(tick, every);
   setTimeout(tick, 30_000);
 }
