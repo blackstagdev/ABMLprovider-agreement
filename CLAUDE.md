@@ -8,7 +8,7 @@ Read this file at the start of every session. Update it whenever a project decis
 - **In-scope provider = a Shopify customer with tag `wholesale`** (`PROVIDER_TAGS`). The theme gates prices and ordering on this tag everywhere. Eligibility never looks at the pending tag.
 - Pending tag: `provider-agreement-pending`. The theme export had no existing tag, so this is the proposed default. It is set only on unsigned providers after checking for an existing signature, and removed only after `true` reads back.
 - Recovery tag in GHL: `provider-agreement-resend`. A GHL workflow re-sends the agreement. The app never creates documents.
-- Retail and non-provider customers are unaffected. **Guests:** the Function blocks logged-out checkout (`GUEST_POLICY='block'`) because the store is provider-only. *This is unconfirmed with the merchant (see Open decisions).*
+- Retail and non-provider customers are unaffected. **Guests:** the Function blocks logged-out checkout (`GUEST_POLICY='block'`). **Confirmed by the merchant on 2026-11-25.**
 
 ## Existing GHL setup (do not modify)
 - Published workflow **`1. Provider Onboarding`**. Trigger: opportunity enters stage **`Send Document`** in pipeline **`1. Providers (RK)`**. The **`Send Documents & Contracts`** action emails **`Alpha BioMed Provider Agreement`** from **`Alpha BioMed Support`**. It owns document creation and invitations, with a drip delay (`ONBOARDING_DRIP_DELAY_MINUTES`, default 60).
@@ -66,17 +66,17 @@ Path: `D:\ABM blackfriday\theme_export__alphabiomedlabs-com-refresh__23NOV2026-0
 - Function: JavaScript, `@shopify/shopify_function` 2.0.1, export `cart-validations-generate-run`. Rule logic is in `src/run.js`, which is pure. Tags are hard-coded in `run.graphql` and `policy.js`, and a test keeps them in sync with the `PROVIDER_TAGS` default. Activation: `validationCreate` (disabled), then `validationUpdate enable` with `blockOnFailure: true`.
 
 ## Tests
-`npm test` runs 67 tests with `node:test`, Postgres via PGlite (real migrations) and jsdom. They need no network or credentials. PGlite prints "The system cannot find the path specified." on Windows, which is harmless.
+`npm test` runs 71 tests with `node:test`, Postgres via PGlite (real migrations) and jsdom. They need no network or credentials. PGlite prints "The system cannot find the path specified." on Windows, which is harmless.
 - **Covered locally:** historical signers, unsigned providers, missing fields, retail unaffected, guest policy, ambiguous identities, duplicate events, signing before customer creation, partial-write retry, delayed init, embedded and new-tab signing UI, direct, Buy Now and express interception, resume once, Function and server rule parity.
 - **Needs a dev store or live credentials:** real GHL response shape (`templateId`, `shareLink`, recipient ID = contact ID, `query` search by email), framing of the GHL signing page on the storefront origin (desktop, iOS Safari, Android Chrome), workflow merge fields, `compareDigest:null` behavior, Function compile (Javy) and run in checkout, accelerated checkout coverage, app proxy on the live domain, and client-credentials eligibility.
 
 ## Open decisions / to verify
-1. Guest policy: is every purchase provider-only (login required)? Default is block.
-2. Where the GHL→Shopify registration workflow stores cross-IDs (metafield key, GHL custom field ID).
+1. ~~Guest policy~~: **resolved 2026-11-25**, block guests (login required).
+2. Where the GHL→Shopify registration workflow stores cross-IDs. The merchant doesn't know. Run `npm run inspect:identity` (read-only; prints field names and counts only) and set `SHOPIFY_GHL_CONTACT_ID_METAFIELD` / `GHL_SHOPIFY_CUSTOMER_ID_FIELD_ID` from its recommendations. If none are found, matching uses unique email only.
 3. Whether live GHL documents include a template ID. If so, set `AGREEMENT_TEMPLATE_ID` for instant popup unlock. Otherwise unlock waits for the workflow event.
 4. Whether `shareLink` is recipient-specific and can be framed (X-Frame-Options/CSP). The new-tab fallback is always present.
-5. Store plan (Plus?) and app distribution. **If Functions are unavailable:** keep the sync and popup. Use a public App Store validation app that can block checkout on a customer metafield or tag (the rule is: has `wholesale` AND NOT metafield `true`), or use Shopify's B2B/customer-account requirements. Limits: popup-only enforcement can be bypassed by direct checkout links and wallets.
+5. ~~Store plan~~: **resolved 2026-11-25**, the store is on Shopify Plus, so the custom-app Function is allowed. (Kept for reference: **if Functions are unavailable:** keep the sync and popup. Use a public App Store validation app that can block checkout on a customer metafield or tag (the rule is: has `wholesale` AND NOT metafield `true`), or use Shopify's B2B/customer-account requirements. Limits: popup-only enforcement can be bypassed by direct checkout links and wallets.)
 6. `REQUIRE_SIGNED_DATE=true`. Turn it off only if live completed signers lack `signedDate`.
 
 ## Last verified milestone
-2026-11-25: full implementation on branch `feature/provider-agreement-sync`, pushed to `origin` = https://github.com/blackstagdev/ABMLprovider-agreement.git (it is the repo's only branch, so it is currently the GitHub default; no `main` yet). 67/67 local tests passing. No GHL/Shopify credentials in this environment. **The real dry-run backfill has NOT been run yet**, because it needs GHL and Shopify credentials.
+2026-11-25: full implementation on branch `feature/provider-agreement-sync`, pushed to `origin` = https://github.com/blackstagdev/ABMLprovider-agreement.git (it is the repo's only branch, so it is currently the GitHub default; no `main` yet). 71/71 local tests passing. First Render deploy failed only because the `sync: false` secrets were left blank (`SHOPIFY_API_SECRET`, `GHL_PRIVATE_INTEGRATION_TOKEN`, `GHL_LOCATION_ID`). The error message now names the env vars. No GHL/Shopify credentials in this environment. **The real dry-run backfill has NOT been run yet**, because it needs GHL and Shopify credentials.

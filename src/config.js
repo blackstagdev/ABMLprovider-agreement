@@ -71,10 +71,23 @@ export function parseNsKey(s) {
   return { namespace: s.slice(0, i), key: s.slice(i + 1) };
 }
 
+// Config path -> environment variable, so errors name what to set in Render.
+export const ENV_NAMES = {
+  databaseUrl: 'DATABASE_URL',
+  'shopify.shop': 'SHOPIFY_SHOP',
+  'shopify.clientId': 'SHOPIFY_API_KEY',
+  'shopify.clientSecret': 'SHOPIFY_API_SECRET',
+  'ghl.token': 'GHL_PRIVATE_INTEGRATION_TOKEN',
+  'ghl.locationId': 'GHL_LOCATION_ID',
+};
+
 export function requireKeys(cfg, keys) {
   const missing = keys.filter((k) => {
     const v = k.split('.').reduce((o, p) => (o == null ? o : o[p]), cfg);
     return v === undefined || v === null || v === '';
   });
-  if (missing.length) throw new Error(`Missing required configuration: ${missing.join(', ')}`);
+  if (missing.length) {
+    const names = missing.map((k) => ENV_NAMES[k] ?? k).join(', ');
+    throw new Error(`Missing environment variables: ${names}. Set them in Render > Environment (or .env locally), then redeploy.`);
+  }
 }

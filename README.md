@@ -16,11 +16,12 @@ The full brief is in [Antigravity_ABM_Provider_Agreement.md](Antigravity_ABM_Pro
 
 ```bash
 npm ci
-npm test                                   # 67 local tests (PGlite Postgres + jsdom; no network)
+npm test                                   # 71 local tests (PGlite Postgres + jsdom; no network)
 npm run build                              # syntax check (Render build step)
 npm run migrate                            # apply migrations/*.sql
 npm start                                  # HTTP + worker + 10-min reconciler
 
+npm run inspect:identity                   # READ-ONLY: find where GHL/Shopify cross-IDs are stored
 npm run backfill                           # DRY RUN: report only, no Shopify writes
 npm run backfill -- --resume <runId>       # resume a specific run (failed runs resume automatically)
 npm run mapping:import -- reviewed.csv     # import reviewed document IDs (document_id,decision,note)
@@ -43,14 +44,14 @@ Reports are written to `reports/`, which is gitignored. The CSVs contain only ID
 - [ ] Run the backfill CLIs from the Render **Shell**. They use the same env and database.
 
 ### Shopify
-- [ ] Confirm the store is on **Shopify Plus**. Custom apps can use Functions only on Plus. If the store is not on Plus, keep the sync and popup and see "If Functions are unavailable" in CLAUDE.md.
+- [x] The store is on **Shopify Plus** (confirmed), so the checkout Function is allowed.
 - [ ] In the Dev Dashboard, create the app under the **same organization** as the store, because the client-credentials grant requires it. Then put the client ID and the Render host into [shopify.app.toml](shopify.app.toml).
 - [ ] Run `npm i -g @shopify/cli`, then `cd extensions/provider-agreement-validation && npm i`. From the repository root, run `shopify app deploy --no-release` and then `shopify app release --version=<v>`.
 - [ ] Install the app on the store and approve the scopes.
 - [ ] Run `npm run setup:metafield`. It creates **Provider agreement signed** (`custom.provider_agreement_signed`, boolean) with customer-account access set to NONE.
 - [ ] In the theme editor, go to **App embeds** and turn on **Provider agreement gate**. Test it on a duplicate of the live theme first.
 - [ ] Run `npm run validation -- create`, which creates the validation disabled. Enabling it is a later rollout step.
-- [ ] **Guest policy:** confirm that every purchase requires a provider login. The Function currently blocks logged-out checkout (`GUEST_POLICY = 'block'` in `extensions/provider-agreement-validation/src/policy.js`).
+- [x] **Guest policy:** logged-out checkout is blocked (confirmed; `GUEST_POLICY = 'block'`).
 
 ### GHL
 - [ ] Create a **Private Integration** token for the location. It needs Documents & Contracts read access and Contacts read and write access, because the app reads contacts and adds a recovery tag.
@@ -63,9 +64,10 @@ Reports are written to `reports/`, which is gitignored. The CSVs contain only ID
 - [ ] Confirm the agreement template prefills the recipient's first name, last name and email from contact merge fields.
 
 ### Rollout, in order and after review
-1. [ ] Run `npm run backfill` (dry run). Review `reports/backfill-<id>-dry_run.json` and the CSV.
-2. [ ] Fill in the `decision` column of `*-unresolved-review.csv`, run `npm run mapping:import`, then run the dry run again.
-3. [ ] Resolve the ambiguous, missing and failed rows in GHL or Shopify, then run the dry run again.
-4. [ ] **Apply:** `npm run backfill -- --apply --confirm`.
-5. [ ] On a development store or test customers, run the cases in CLAUDE.md under "Needs a dev store". Check embedded signing on desktop and mobile Safari and Chrome.
-6. [ ] **Enforce:** `npm run validation -- enable --confirm`. Roll back with `disable`.
+1. [ ] Run `npm run inspect:identity` and set the two ID variables it recommends in Render (or leave them blank if it finds none).
+2. [ ] Run `npm run backfill` (dry run). Review `reports/backfill-<id>-dry_run.json` and the CSV.
+3. [ ] Fill in the `decision` column of `*-unresolved-review.csv`, run `npm run mapping:import`, then run the dry run again.
+4. [ ] Resolve the ambiguous, missing and failed rows in GHL or Shopify, then run the dry run again.
+5. [ ] **Apply:** `npm run backfill -- --apply --confirm`.
+6. [ ] On a development store or test customers, run the cases in CLAUDE.md under "Needs a dev store". Check embedded signing on desktop and mobile Safari and Chrome.
+7. [ ] **Enforce:** `npm run validation -- enable --confirm`. Roll back with `disable`.
