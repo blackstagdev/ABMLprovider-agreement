@@ -218,3 +218,10 @@ test('polling uses bounded backoff', () => {
   assert.equal(gate.backoffDelay(5), 8000);
   assert.equal(gate.backoffDelay(500), 30000);
 });
+
+test('shipped asset is the current minified build and under the 10 KB theme-check limit', async () => {
+  const { buildGate } = await import('../scripts/build-gate.js');
+  const expected = await buildGate();
+  assert.equal(src, expected, 'run npm run build:gate');
+  assert.ok(Buffer.byteLength(src) <= 10_000);
+});

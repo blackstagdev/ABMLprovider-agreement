@@ -1,14 +1,13 @@
 # Shopify app configuration (Shopify CLI). Replace the placeholders, then `shopify app deploy`.
 # Distribution: custom app for alphabiomedlabs.myshopify.com, created in the Dev Dashboard under the
 # same organization as the store (required for the client credentials grant).
-client_id = "REPLACE_WITH_SHOPIFY_CLIENT_ID"
+client_id = "e541fb67a7488f765b76a2051879d6b8"
 name = "ABM Provider Agreement"
 handle = "abm-provider-agreement"
 application_url = "https://abm-provider-agreement.onrender.com"
 embedded = false
 
 [build]
-include_config_on_deploy = true
 automatically_update_urls_on_dev = false
 
 [access_scopes]

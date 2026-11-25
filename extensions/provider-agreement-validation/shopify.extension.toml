@@ -3,6 +3,7 @@ api_version = "2026-10"
 [[extensions]]
 name = "Provider agreement validation"
 handle = "provider-agreement-validation"
+uid = "7238ae6c-22a5-f938-81a2-e1b90fee8d34a0c9cbb7"
 type = "function"
 description = "Blocks checkout for providers whose agreement is not signed (custom.provider_agreement_signed != true)."
 

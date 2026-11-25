@@ -8,7 +8,7 @@
     "node": ">=22"
   },
   "scripts": {
-    "build": "node --check src/server.js && node scripts/check-syntax.js",
+    "build": "node scripts/check-syntax.js && node scripts/build-gate.js --check",
     "start": "node src/server.js",
     "migrate": "node src/migrate.js",
     "test": "node --test --test-reporter=spec \"test/*.test.js\"",
@@ -17,13 +17,15 @@
     "setup:metafield": "node src/cli/setup-metafield.js",
     "validation": "node src/cli/validation.js",
     "shopify": "shopify",
-    "inspect:identity": "node src/cli/inspect-identity.js"
+    "inspect:identity": "node src/cli/inspect-identity.js",
+    "build:gate": "node scripts/build-gate.js"
   },
   "dependencies": {
     "pg": "8.16.3"
   },
   "devDependencies": {
     "@electric-sql/pglite": "0.3.7",
+    "esbuild": "^0.28.2",
     "jsdom": "26.1.0"
   }
 }
