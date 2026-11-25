@@ -21,7 +21,8 @@
     "build:gate": "node scripts/build-gate.js",
     "ghl:probe": "node src/cli/ghl-probe.js",
     "mapping:approve-names": "node src/cli/approve-name-matches.js",
-    "backfill:report": "node src/cli/backfill-report.js"
+    "backfill:report": "node src/cli/backfill-report.js",
+    "export:unsigned": "node src/cli/export-unsigned.js"
   },
   "dependencies": {
     "pg": "8.16.3"
@@ -29,6 +30,7 @@
   "devDependencies": {
     "@electric-sql/pglite": "0.3.7",
     "esbuild": "^0.28.2",
+    "exceljs": "4.4.0",
     "jsdom": "26.1.0"
   }
 }
