@@ -73,6 +73,13 @@ export function createGhlClient({ token, locationId, requestsPerSecond = 8, fetc
         query: { locationId, limit: capped, skip, status, query, dateFrom, dateTo },
       });
     },
+    /** GET /proposals/templates (documented; may need a templates scope on the token). */
+    listTemplates({ name, limit = 20, skip = 0 } = {}) {
+      return request('GET', '/proposals/templates', {
+        version: GHL_DOCUMENTS_VERSION,
+        query: { locationId, name, limit: String(limit), skip: String(skip) },
+      });
+    },
     async getContact(contactId) {
       const r = await request('GET', `/contacts/${encodeURIComponent(contactId)}`, { version: GHL_CONTACTS_VERSION });
       return r?.contact ?? null;

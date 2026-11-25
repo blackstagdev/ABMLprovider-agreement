@@ -16,7 +16,7 @@ The full brief is in [Antigravity_ABM_Provider_Agreement.md](Antigravity_ABM_Pro
 
 ```bash
 npm ci
-npm test                                   # 78 local tests (PGlite Postgres + jsdom; no network)
+npm test                                   # 81 local tests (PGlite Postgres + jsdom; no network)
 npm run build                              # syntax check (Render build step)
 npm run migrate                            # apply migrations/*.sql
 npm start                                  # HTTP + worker + 10-min reconciler
@@ -26,6 +26,8 @@ npm run inspect:identity                   # READ-ONLY: find where GHL/Shopify c
 npm run backfill                           # DRY RUN: report only, no Shopify writes
 npm run backfill -- --resume <runId>       # resume a specific run (failed runs resume automatically)
 npm run mapping:import -- reviewed.csv     # import reviewed document IDs (document_id,decision,note)
+npm run mapping:approve-names              # preview bulk approval of exact-name agreements from the last dry run
+npm run mapping:approve-names -- --run <id> --confirm --by "<name>"   # write it
 npm run backfill -- --apply --confirm      # ROLLOUT STEP: write verified signatures to Shopify
 
 npm run setup:metafield                    # create custom.provider_agreement_signed definition
@@ -68,7 +70,7 @@ Reports are written to `reports/`, which is gitignored. The CSVs contain only ID
 ### Rollout, in order and after review
 1. [ ] Run `npm run inspect:identity` and set the two ID variables it recommends in Render (or leave them blank if it finds none).
 2. [ ] Run `npm run backfill` (dry run). Review `reports/backfill-<id>-dry_run.json` and the CSV.
-3. [ ] Fill in the `decision` column of `*-unresolved-review.csv`, run `npm run mapping:import`, then run the dry run again.
+3. [ ] Run `npm run mapping:approve-names`, check the counts and that only one GHL template has the exact name, then re-run it with `--confirm --by "<name>"`. (Or, for small sets, fill in the `decision` column of `*-unresolved-review.csv`, run `npm run mapping:import`, then run the dry run again.)
 4. [ ] Resolve the ambiguous, missing and failed rows in GHL or Shopify, then run the dry run again.
 5. [ ] **Apply:** `npm run backfill -- --apply --confirm`.
 6. [ ] In Render, set `SHOPIFY_WRITES_ENABLED=true` and redeploy. Ongoing sync then writes to Shopify; until then it only records verified signatures.
