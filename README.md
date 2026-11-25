@@ -46,7 +46,8 @@ Reports are written to `reports/`, which is gitignored. The CSVs contain only ID
 ### Shopify
 - [x] The store is on **Shopify Plus** (confirmed), so the checkout Function is allowed.
 - [ ] In the Dev Dashboard, create the app under the **same organization** as the store, because the client-credentials grant requires it. Then put the client ID and the Render host into [shopify.app.toml](shopify.app.toml).
-- [ ] Run `npm i -g @shopify/cli`, then `cd extensions/provider-agreement-validation && npm i`. From the repository root, run `shopify app deploy --no-release` and then `shopify app release --version=<v>`.
+- [ ] From the repository root, run `shopify app config link` (browser login, then choose the store's organization and **create a new app**). This overwrites `shopify.app.toml`: restore it with `git checkout shopify.app.toml` and paste in only the new `client_id`.
+- [ ] Run `cd extensions/provider-agreement-validation && npm i && shopify app function schema`, then from the root run `shopify app deploy --allow-updates`.
 - [ ] Install the app on the store and approve the scopes.
 - [ ] Run `npm run setup:metafield`. It creates **Provider agreement signed** (`custom.provider_agreement_signed`, boolean) with customer-account access set to NONE.
 - [ ] In the theme editor, go to **App embeds** and turn on **Provider agreement gate**. Test it on a duplicate of the live theme first.
