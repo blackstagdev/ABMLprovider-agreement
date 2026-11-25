@@ -1,0 +1,43 @@
+# Shopify app configuration (Shopify CLI). Replace the placeholders, then `shopify app deploy`.
+# Distribution: custom app for alphabiomedlabs.myshopify.com, created in the Dev Dashboard under the
+# same organization as the store (required for the client credentials grant).
+client_id = "REPLACE_WITH_SHOPIFY_CLIENT_ID"
+name = "ABM Provider Agreement"
+handle = "abm-provider-agreement"
+application_url = "https://REPLACE_WITH_RENDER_HOST.onrender.com"
+embedded = false
+
+[build]
+include_config_on_deploy = true
+automatically_update_urls_on_dev = false
+
+[access_scopes]
+# customers: read/write the agreement metafield + pending tag
+# validations: create/enable the checkout validation
+# app proxy: storefront status/signing endpoints
+scopes = "read_customers,write_customers,read_validations,write_validations,write_app_proxy"
+
+[auth]
+# Not used for token issuance (client credentials grant), but the field is required.
+redirect_urls = ["https://REPLACE_WITH_RENDER_HOST.onrender.com/auth/callback"]
+
+[webhooks]
+api_version = "2026-10"
+
+  [[webhooks.subscriptions]]
+  topics = ["customers/create", "customers/update"]
+  uri = "https://REPLACE_WITH_RENDER_HOST.onrender.com/webhooks/shopify"
+
+  [[webhooks.subscriptions]]
+  compliance_topics = ["customers/data_request", "customers/redact", "shop/redact"]
+  uri = "https://REPLACE_WITH_RENDER_HOST.onrender.com/webhooks/shopify"
+
+[app_proxy]
+# Storefront calls /apps/provider-agreement/{status,recheck,agreement,resend};
+# Shopify signs each request and adds logged_in_customer_id.
+url = "https://REPLACE_WITH_RENDER_HOST.onrender.com/proxy"
+subpath = "provider-agreement"
+prefix = "apps"
+
+[pos]
+embedded = false

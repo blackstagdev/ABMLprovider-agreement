@@ -1,0 +1,18 @@
+# Keep the tag list in sync with src/policy.js PROVIDER_TAGS and the app's PROVIDER_TAGS env var.
+query CartValidationsGenerateRunInput {
+  buyerJourney {
+    step
+  }
+  cart {
+    buyerIdentity {
+      isAuthenticated
+      customer {
+        id
+        isProvider: hasAnyTag(tags: ["wholesale"])
+        agreement: metafield(namespace: "custom", key: "provider_agreement_signed") {
+          value
+        }
+      }
+    }
+  }
+}

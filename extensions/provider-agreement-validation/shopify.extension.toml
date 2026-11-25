@@ -1,0 +1,12 @@
+api_version = "2026-10"
+
+[[extensions]]
+name = "Provider agreement validation"
+handle = "provider-agreement-validation"
+type = "function"
+description = "Blocks checkout for providers whose agreement is not signed (custom.provider_agreement_signed != true)."
+
+  [[extensions.targeting]]
+  target = "cart.validations.generate.run"
+  input_query = "src/run.graphql"
+  export = "cart-validations-generate-run"

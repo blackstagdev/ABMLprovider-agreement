@@ -1,0 +1,89 @@
+{%- comment -%}
+  App embed: provider agreement checkout gate + signing popup.
+  The JSON below is only a UX hint. Unlocking checkout always depends on the app's server-verified
+  status (app proxy), and the checkout Function enforces the rule server-side.
+{%- endcomment -%}
+{%- liquid
+  assign is_provider = false
+  if customer
+    assign provider_tags = block.settings.provider_tags | split: ','
+    for t in provider_tags
+      assign tag = t | strip
+      if tag != blank and customer.tags contains tag
+        assign is_provider = true
+      endif
+    endfor
+  endif
+  assign signed_hint = false
+  if customer and customer.metafields.custom.provider_agreement_signed.value == true
+    assign signed_hint = true
+  endif
+-%}
+<script type="application/json" id="abm-agreement-config">
+  {
+    "enabled": {{ block.settings.enabled | json }},
+    "loggedIn": {% if customer %}true{% else %}false{% endif %},
+    "isProvider": {{ is_provider | json }},
+    "signedHint": {{ signed_hint | json }},
+    "proxyBase": {{ block.settings.proxy_path | json }},
+    "supportEmail": {{ block.settings.support_email | json }},
+    "text": {
+      "title": {{ 'gate.title' | t | json }},
+      "intro": {{ 'gate.intro' | t | json }},
+      "signingAs": {{ 'gate.signing_as' | t | json }},
+      "openNewTab": {{ 'gate.open_new_tab' | t | json }},
+      "checkAgain": {{ 'gate.check_again' | t | json }},
+      "continueShopping": {{ 'gate.continue_shopping' | t | json }},
+      "confirming": {{ 'gate.confirming' | t | json }},
+      "confirmed": {{ 'gate.confirmed' | t | json }},
+      "notYet": {{ 'gate.not_yet' | t | json }},
+      "loading": {{ 'gate.loading' | t | json }},
+      "frameHelp": {{ 'gate.frame_help' | t | json }},
+      "pendingInvite": {{ 'gate.pending_invite' | t | json }},
+      "expired": {{ 'gate.expired' | t | json }},
+      "requestLink": {{ 'gate.request_link' | t | json }},
+      "requested": {{ 'gate.requested' | t | json }},
+      "alreadyRequested": {{ 'gate.already_requested' | t | json }},
+      "support": {{ 'gate.support' | t | json }},
+      "error": {{ 'gate.error' | t | json }},
+      "expressUnlocked": {{ 'gate.express_unlocked' | t | json }},
+      "shieldLabel": {{ 'gate.shield_label' | t | json }}
+    }
+  }
+</script>
+
+{% schema %}
+{
+  "name": "Provider agreement gate",
+  "target": "body",
+  "javascript": "agreement-gate.js",
+  "stylesheet": "agreement-gate.css",
+  "settings": [
+    {
+      "type": "checkbox",
+      "id": "enabled",
+      "label": "Prompt unsigned providers at checkout",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "provider_tags",
+      "label": "Provider customer tags (comma separated)",
+      "info": "Must match the app's PROVIDER_TAGS and the checkout Function.",
+      "default": "wholesale"
+    },
+    {
+      "type": "text",
+      "id": "proxy_path",
+      "label": "App proxy path",
+      "default": "/apps/provider-agreement"
+    },
+    {
+      "type": "text",
+      "id": "support_email",
+      "label": "Support email",
+      "default": "support@alphabiomedlabs.com"
+    }
+  ]
+}
+{% endschema %}

@@ -1,0 +1,24 @@
+{
+  "gate": {
+    "title": "Sign your provider agreement",
+    "intro": "Before checking out, please sign the Alpha BioMed Provider Agreement. Your cart is saved.",
+    "signing_as": "Signing as",
+    "open_new_tab": "Open agreement in a new tab",
+    "check_again": "I've signed — check again",
+    "continue_shopping": "Continue shopping",
+    "confirming": "Confirming your signature…",
+    "confirmed": "Signature confirmed. Continuing to checkout…",
+    "not_yet": "We haven't received your signature yet. It can take a minute after you finish signing.",
+    "loading": "Loading your agreement…",
+    "frame_help": "If the agreement doesn't appear above, open it in a new tab. We'll check for your signature when you come back.",
+    "pending_invite": "Your agreement invitation is on its way from Alpha BioMed Support. Please check your email shortly.",
+    "expired": "Your agreement link has expired or is unavailable.",
+    "request_link": "Email me a new agreement link",
+    "requested": "Request received. A new agreement link will be emailed to you shortly.",
+    "already_requested": "A new link was already requested recently. Please check your email.",
+    "support": "Need help? Contact",
+    "error": "We couldn't reach the agreement service. Please try again, or contact support.",
+    "express_unlocked": "Checkout is enabled. Please choose your express checkout option again.",
+    "shield_label": "Sign your provider agreement to use express checkout"
+  }
+}

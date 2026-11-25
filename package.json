@@ -1,0 +1,28 @@
+{
+  "name": "abm-provider-agreement",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Alpha BioMed Labs provider agreement sync, checkout enforcement and signing popup (Shopify custom app + GHL).",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "node --check src/server.js && node scripts/check-syntax.js",
+    "start": "node src/server.js",
+    "migrate": "node src/migrate.js",
+    "test": "node --test --test-reporter=spec \"test/*.test.js\"",
+    "backfill": "node src/backfill/cli.js",
+    "mapping:import": "node src/cli/mapping-import.js",
+    "setup:metafield": "node src/cli/setup-metafield.js",
+    "validation": "node src/cli/validation.js",
+    "shopify": "shopify"
+  },
+  "dependencies": {
+    "pg": "8.16.3"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.3.7",
+    "jsdom": "26.1.0"
+  }
+}

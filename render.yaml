@@ -1,0 +1,60 @@
+# Render Blueprint: web service (HTTP + durable worker + reconciler) and PostgreSQL.
+# Secrets use `sync: false`: Render asks for them when the Blueprint is first applied.
+services:
+  - type: web
+    name: abm-provider-agreement
+    runtime: node
+    plan: starter            # paid plan: required for preDeployCommand; keeps the worker always on
+    buildCommand: npm ci && npm run build
+    preDeployCommand: npm run migrate
+    startCommand: npm start
+    healthCheckPath: /healthz
+    autoDeploy: false        # release deliberately (see README "Release")
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: abm-provider-agreement-db
+          property: connectionString
+      - key: APP_URL
+        sync: false
+      - key: SHOPIFY_SHOP
+        value: alphabiomedlabs.myshopify.com
+      - key: SHOPIFY_API_KEY
+        sync: false
+      - key: SHOPIFY_API_SECRET
+        sync: false
+      - key: GHL_PRIVATE_INTEGRATION_TOKEN
+        sync: false
+      - key: GHL_LOCATION_ID
+        sync: false
+      - key: GHL_WEBHOOK_SECRET
+        generateValue: true
+      - key: AGREEMENT_DOCUMENT_NAME
+        value: Alpha BioMed Provider Agreement
+      - key: AGREEMENT_TEMPLATE_ID
+        sync: false
+      - key: GHL_SHOPIFY_CUSTOMER_ID_FIELD_ID
+        sync: false
+      - key: SHOPIFY_GHL_CONTACT_ID_METAFIELD
+        value: custom.ghl_contact_id
+      - key: PROVIDER_TAGS
+        value: wholesale
+      - key: PENDING_TAG
+        value: provider-agreement-pending
+      - key: RECOVERY_MODE
+        value: tag
+      - key: RECOVERY_TAG
+        value: provider-agreement-resend
+      - key: SUPPORT_EMAIL
+        value: support@alphabiomedlabs.com
+      - key: BACKFILL_START_DATE
+        value: "2020-01-01"
+
+databases:
+  - name: abm-provider-agreement-db
+    plan: basic-256mb
+    databaseName: abm_provider_agreement
+    user: abm_app
+    ipAllowList: []          # private network only

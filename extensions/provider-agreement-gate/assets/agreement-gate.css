@@ -1,0 +1,89 @@
+/* Provider agreement modal. Uses the Refresh theme's CSS custom properties (layout/theme.liquid)
+   and its .button / .button--primary / .button--secondary classes, with fallbacks matching the
+   exported settings (scheme-1: #ffffff bg, #122f54 text, #2861a9 buttons; Archivo/Questrial). */
+.abm-ag[hidden] { display: none !important; }
+.abm-ag {
+  position: fixed; inset: 0; z-index: 2147483000;
+  display: flex; align-items: center; justify-content: center;
+  padding: 2rem;
+}
+.abm-ag__overlay {
+  position: absolute; inset: 0;
+  background: rgba(var(--color-foreground, 18, 47, 84), 0.5);
+}
+.abm-ag__dialog {
+  position: relative;
+  display: flex; flex-direction: column;
+  width: min(72rem, 100%);
+  max-height: calc(100vh - 4rem);
+  max-height: calc(100dvh - 4rem);
+  background: rgb(var(--color-background, 255, 255, 255));
+  color: rgb(var(--color-foreground, 18, 47, 84));
+  border: var(--popup-border-width, 1px) solid rgba(var(--color-foreground, 18, 47, 84), var(--popup-border-opacity, 0.1));
+  border-radius: var(--popup-corner-radius, 18px);
+  box-shadow: 0 1rem 4rem rgba(var(--color-shadow, 40, 97, 169), 0.18);
+  font-family: var(--font-body-family, Questrial, sans-serif);
+  font-size: calc(var(--font-body-scale, 1.05) * 1.5rem);
+  line-height: calc(1 + 0.8 / var(--font-body-scale, 1.05));
+  overflow: hidden;
+}
+.abm-ag__body { padding: 3rem 3rem 1.5rem; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.abm-ag__title {
+  margin: 0 0 1rem;
+  font-family: var(--font-heading-family, Archivo, sans-serif);
+  font-weight: var(--font-heading-weight, 700);
+  font-size: calc(var(--font-heading-scale, 1.05) * 2.4rem);
+  line-height: 1.2;
+  color: rgb(var(--color-foreground, 18, 47, 84));
+}
+.abm-ag__intro, .abm-ag__who, .abm-ag__help, .abm-ag__support { margin: 0 0 1.2rem; }
+.abm-ag__who, .abm-ag__help, .abm-ag__support { color: rgba(var(--color-foreground, 18, 47, 84), 0.75); font-size: 0.9em; }
+.abm-ag__frame-wrap {
+  border: 1px solid rgba(var(--color-foreground, 18, 47, 84), 0.15);
+  border-radius: calc(var(--popup-corner-radius, 18px) / 2);
+  overflow: hidden; margin: 0 0 1.2rem;
+  background: rgb(var(--color-background, 255, 255, 255));
+}
+.abm-ag__frame { display: block; width: 100%; height: min(60vh, 64rem); border: 0; }
+.abm-ag__status { min-height: 1.5em; margin: 0 0 0.5rem; font-weight: var(--font-body-weight-bold, 700); }
+.abm-ag__status[data-tone='error'] { color: #a40000; }
+.abm-ag__actions {
+  display: flex; flex-wrap: wrap; gap: 1rem; justify-content: flex-end;
+  padding: 1.5rem 3rem 2.5rem;
+  border-top: 1px solid rgba(var(--color-foreground, 18, 47, 84), 0.08);
+  background: rgb(var(--color-background, 255, 255, 255));
+}
+.abm-ag__actions .button { margin: 0; min-width: 0; }
+.abm-ag a.abm-ag__link { color: rgb(var(--color-link, 40, 97, 169)); }
+.abm-ag :focus-visible {
+  outline: 0.2rem solid rgba(var(--color-foreground, 18, 47, 84), 0.5);
+  outline-offset: 0.3rem;
+  box-shadow: 0 0 0 0.3rem rgb(var(--color-background, 255, 255, 255)), 0 0 0.5rem 0.4rem rgba(var(--color-foreground, 18, 47, 84), 0.3);
+}
+.abm-ag__close {
+  position: absolute; top: 1rem; right: 1rem;
+  width: 4.4rem; height: 4.4rem; border: 0; border-radius: 50%;
+  background: transparent; color: inherit; cursor: pointer; font-size: 2.4rem; line-height: 1;
+}
+html.abm-ag-open { overflow: hidden; }
+.abm-ag-shield {
+  position: absolute; inset: 0; z-index: 5; cursor: pointer;
+  background: transparent; border: 0; padding: 0;
+}
+.abm-ag-shielded { position: relative; }
+
+/* Mobile: full-height scrollable sheet, actions pinned and reachable. */
+@media screen and (max-width: 749px) {
+  .abm-ag { padding: 0; align-items: stretch; }
+  .abm-ag__dialog { width: 100%; max-height: none; height: 100%; border-radius: 0; border: 0; }
+  .abm-ag__body { padding: 2rem 1.6rem 1rem; flex: 1 1 auto; }
+  .abm-ag__frame { height: 65vh; height: 65dvh; }
+  .abm-ag__actions {
+    flex-direction: column-reverse; padding: 1.2rem 1.6rem calc(1.6rem + env(safe-area-inset-bottom));
+  }
+  .abm-ag__actions .button { width: 100%; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .abm-ag__dialog { animation: abm-ag-in 0.2s ease-out; }
+  @keyframes abm-ag-in { from { opacity: 0; transform: translateY(1rem); } to { opacity: 1; transform: none; } }
+}
