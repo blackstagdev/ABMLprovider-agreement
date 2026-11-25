@@ -33,7 +33,7 @@ async function allCustomers() {
     const d = await admin.graphql(
       `query($after: String) { customers(first: 100, after: $after) {
          nodes { id legacyResourceId firstName lastName email tags state createdAt numberOfOrders
-           amountSpent { amount currencyCode } lastOrder { createdAt }
+           amountSpent { amount currencyCode }
            defaultAddress { company city provinceCode countryCodeV2 }
            signed: metafield(namespace: "${sm.namespace}", key: "${sm.key}") { value } }
          pageInfo { hasNextPage endCursor } } }`,
@@ -52,7 +52,6 @@ async function allCustomers() {
         orders: Number(n.numberOfOrders ?? 0),
         amountSpent: Number(n.amountSpent?.amount ?? 0),
         currency: n.amountSpent?.currencyCode ?? '',
-        lastOrderAt: n.lastOrder?.createdAt ?? null,
         company: n.defaultAddress?.company ?? '',
         city: n.defaultAddress?.city ?? '',
         province: n.defaultAddress?.provinceCode ?? '',
@@ -112,7 +111,6 @@ const CUSTOMER_COLS = [
   ['orders', 'Orders', 9],
   ['amountSpent', 'Amount spent', 13],
   ['currency', 'Currency', 9],
-  ['lastOrderAt', 'Last order', 12],
   ['createdAt', 'Customer since', 14],
   ['shopifyCustomerId', 'Shopify customer ID', 18],
   ['shopifyLink', 'Shopify admin', 13],

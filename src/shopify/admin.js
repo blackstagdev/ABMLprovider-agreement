@@ -72,7 +72,7 @@ export function createShopifyAdmin({ shop, clientId, clientSecret, staticAccessT
         await sleep(1000 * 2 ** attempt);
         continue;
       }
-      if (j.errors?.length) throw new Error(`Shopify GraphQL error: ${j.errors.map((e) => e.message).join('; ')}`);
+      if (j.errors?.length) throw new Error(`Shopify GraphQL error: ${[...new Set(j.errors.map((e) => e.message))].slice(0, 3).join("; ")}`);
       return j.data;
     }
   }

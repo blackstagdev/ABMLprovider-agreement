@@ -187,7 +187,6 @@ function customerColumns(c, urls) {
     orders: c.orders ?? 0,
     amountSpent: c.amountSpent ?? 0,
     currency: c.currency ?? '',
-    lastOrderAt: dateOnly(c.lastOrderAt),
     createdAt: dateOnly(c.createdAt),
     shopifyCustomerId: c.legacyId ?? c.id,
     shopifyLink: urls.shopifyCustomer(c.legacyId),
