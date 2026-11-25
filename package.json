@@ -20,7 +20,8 @@
     "inspect:identity": "node src/cli/inspect-identity.js",
     "build:gate": "node scripts/build-gate.js",
     "ghl:probe": "node src/cli/ghl-probe.js",
-    "mapping:approve-names": "node src/cli/approve-name-matches.js"
+    "mapping:approve-names": "node src/cli/approve-name-matches.js",
+    "backfill:report": "node src/cli/backfill-report.js"
   },
   "dependencies": {
     "pg": "8.16.3"

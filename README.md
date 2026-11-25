@@ -16,7 +16,7 @@ The full brief is in [Antigravity_ABM_Provider_Agreement.md](Antigravity_ABM_Pro
 
 ```bash
 npm ci
-npm test                                   # 81 local tests (PGlite Postgres + jsdom; no network)
+npm test                                   # 83 local tests (PGlite Postgres + jsdom; no network)
 npm run build                              # syntax check (Render build step)
 npm run migrate                            # apply migrations/*.sql
 npm start                                  # HTTP + worker + 10-min reconciler
@@ -26,6 +26,7 @@ npm run inspect:identity                   # READ-ONLY: find where GHL/Shopify c
 npm run backfill                           # DRY RUN: report only, no Shopify writes
 npm run backfill -- --resume <runId>       # resume a specific run (failed runs resume automatically)
 npm run mapping:import -- reviewed.csv     # import reviewed document IDs (document_id,decision,note)
+npm run backfill:report -- --run <id>      # outcome/reason breakdown + rows to review (IDs only)
 npm run mapping:approve-names              # preview bulk approval of exact-name agreements from the last dry run
 npm run mapping:approve-names -- --run <id> --confirm --by "<name>"   # write it
 npm run backfill -- --apply --confirm      # ROLLOUT STEP: write verified signatures to Shopify
