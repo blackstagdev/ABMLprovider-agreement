@@ -45,23 +45,32 @@ export function createSignatureSync({ db, ghl, shopify, cfg, enqueue = async () 
    */
   async function matchSigner(signer, index = null) {
     const contact = await ghl.getContact(signer.contactId);
-    const email = normalizeEmail(signer.email) ?? normalizeEmail(contact?.email);
+    // Deleted/merged GHL contact: the signer can't be confirmed, so review it.
+    if (!contact) return { status: 'ambiguous', reason: 'ghl_contact_not_found' };
+    const emails = [...new Set([normalizeEmail(signer.email), normalizeEmail(contact.email)].filter(Boolean))];
+    const emailCandidates = [];
+    for (const email of emails) {
+      emailCandidates.push({
+        email,
+        shopify: index ? index.byEmail.get(email) ?? [] : await shopify.findByEmail(email),
+        ghlContactIds: (await ghl.contactsWithEmail(email)).map((c) => c.id),
+      });
+    }
     const link = await repo.linkByContact(db, signer.contactId);
-    const shopifyByGhlField = contact?.shopifyCustomerId ? await shopify.getCustomer(contact.shopifyCustomerId) : null;
-    const shopifyByEmail = email ? (index ? index.byEmail.get(email) ?? [] : await shopify.findByEmail(email)) : [];
+    const shopifyByGhlField = contact.shopifyCustomerId ? await shopify.getCustomer(contact.shopifyCustomerId) : null;
+    const allByEmail = emailCandidates.flatMap((c) => c.shopify);
     const shopifyByStoredId = index
       ? index.byGhlId.get(signer.contactId) ?? []
-      : shopifyByEmail.filter((c) => c.ghlContactId === signer.contactId);
-    const ghlContactsWithEmail = email ? await ghl.countContactsWithEmail(email) : 0;
+      : allByEmail.filter((c) => c.ghlContactId === signer.contactId);
     return matchIdentity({
       contactId: signer.contactId,
       recipientEmail: signer.email,
       ghlContact: contact,
-      ghlContactsWithEmail,
       shopifyByStoredId,
       shopifyByGhlField,
-      shopifyByEmail,
+      shopifyByEmail: allByEmail,
       linkedCustomerId: link?.shopify_customer_id ?? null,
+      emailCandidates,
     });
   }
 

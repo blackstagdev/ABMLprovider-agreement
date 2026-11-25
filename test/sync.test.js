@@ -354,3 +354,21 @@ test('SHOPIFY_WRITES_ENABLED off (default): nothing is written; verified signatu
   assert.equal(await ctx.sync.applySigned(gid(40), 'c40', { force: true }), 'newly_signed');
   assert.equal(ctx.shopify.customers.get(gid(40)).signed, true);
 });
+
+test('live shapes: email changed after signing is matched; deleted GHL contact goes to review', async () => {
+  const ctx = await setup();
+  // Signed with old@, contact now uses new@; Shopify customer was registered with old@.
+  ctx.ghlClient.contacts.set('c50', { id: 'c50', email: 'new50@x.test' });
+  ctx.shopify.add({ id: gid(50), email: 'old50@x.test', tags: ['wholesale'] });
+  const signed = makeDoc({ id: 'd50', contactId: 'c50', email: 'old50@x.test', ...SIGNED });
+  await repo.upsertMapping(ctx.db, { documentId: 'd50', isAgreement: true, source: 'reviewed_import' });
+  const [ev] = await ctx.sync.evaluateDocs(ctx.db, [signed]);
+  const m = await ctx.sync.matchSigner(ev.signers[0]);
+  assert.deepEqual([m.status, m.method, m.customer.id], ['matched', 'email_changed_after_signing', gid(50)]);
+
+  // Signer's contact was deleted/merged in GHL (live API: 400 "Contact not found").
+  const orphan = makeDoc({ id: 'd51', contactId: 'gone51', email: 'gone51@x.test', ...SIGNED });
+  const [ev2] = await ctx.sync.evaluateDocs(ctx.db, [orphan]);
+  const m2 = await ctx.sync.matchSigner(ev2.signers[0]);
+  assert.deepEqual([m2.status, m2.reason], ['ambiguous', 'ghl_contact_not_found']);
+});

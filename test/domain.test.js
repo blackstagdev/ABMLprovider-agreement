@@ -138,3 +138,36 @@ test('contact id comes from the recipient id, never links[].referenceId (live GH
   d.links[0].referenceId = 'ref_not_a_contact';
   assert.equal(evaluateSignatures(d, cfg, verified).signers[0].contactId, 'contact_abc');
 });
+
+test('email changed after signing: matched when both emails point at one customer and no other contact', () => {
+  const base = { contactId: 'c1', recipientEmail: 'old@x.test', ghlContact: { id: 'c1', email: 'new@x.test' } };
+  const m = matchIdentity({ ...base, emailCandidates: [
+    { email: 'old@x.test', shopify: [{ id: 'S1' }], ghlContactIds: [] },
+    { email: 'new@x.test', shopify: [], ghlContactIds: ['c1'] },
+  ] });
+  assert.deepEqual([m.status, m.method, m.customer.id], ['matched', 'email_changed_after_signing', 'S1']);
+
+  const same = matchIdentity({ ...base, emailCandidates: [
+    { email: 'old@x.test', shopify: [{ id: 'S1' }], ghlContactIds: [] },
+    { email: 'new@x.test', shopify: [{ id: 'S1' }], ghlContactIds: ['c1'] },
+  ] });
+  assert.equal(same.status, 'matched');
+
+  const split = matchIdentity({ ...base, emailCandidates: [
+    { email: 'old@x.test', shopify: [{ id: 'S1' }], ghlContactIds: [] },
+    { email: 'new@x.test', shopify: [{ id: 'S2' }], ghlContactIds: ['c1'] },
+  ] });
+  assert.deepEqual([split.status, split.reason], ['ambiguous', 'emails_match_different_customers']);
+
+  const reused = matchIdentity({ ...base, emailCandidates: [
+    { email: 'old@x.test', shopify: [{ id: 'S1' }], ghlContactIds: ['c9'] },
+    { email: 'new@x.test', shopify: [], ghlContactIds: ['c1'] },
+  ] });
+  assert.deepEqual([reused.status, reused.reason], ['ambiguous', 'shared_email_in_ghl']);
+
+  const none = matchIdentity({ ...base, emailCandidates: [
+    { email: 'old@x.test', shopify: [], ghlContactIds: [] },
+    { email: 'new@x.test', shopify: [], ghlContactIds: ['c1'] },
+  ] });
+  assert.deepEqual([none.status, none.reason], ['missing', 'no_shopify_customer']);
+});

@@ -67,7 +67,8 @@ export function fakeGhlClient() {
     },
     async getContact(id) {
       const c = contacts.get(id);
-      if (!c) throw Object.assign(new Error('404'), { status: 404 });
+      // Live GHL answers 400 (not 404) for deleted/merged contacts.
+      if (!c) throw Object.assign(new Error(`GHL GET /contacts/${id} failed with 400: Contact not found for id:${id}`), { status: 400, ghlReason: `Contact not found for id:${id}` });
       return c;
     },
     async searchContactsByEmail(email) {

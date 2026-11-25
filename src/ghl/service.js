@@ -22,7 +22,8 @@ export function createGhlService(client, cfg) {
       try {
         c = toContact(await client.getContact(id));
       } catch (e) {
-        if (e.status !== 404) throw e;
+        // GHL answers 400 "Contact not found for id" (not 404) for deleted/merged contacts.
+        if (!(e.status === 404 || (e.status === 400 && /not found/i.test(e.ghlReason ?? e.message)))) throw e;
       }
       contactCache.set(id, c);
       return c;

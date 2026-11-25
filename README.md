@@ -16,7 +16,7 @@ The full brief is in [Antigravity_ABM_Provider_Agreement.md](Antigravity_ABM_Pro
 
 ```bash
 npm ci
-npm test                                   # 83 local tests (PGlite Postgres + jsdom; no network)
+npm test                                   # 85 local tests (PGlite Postgres + jsdom; no network)
 npm run build                              # syntax check (Render build step)
 npm run migrate                            # apply migrations/*.sql
 npm start                                  # HTTP + worker + 10-min reconciler
