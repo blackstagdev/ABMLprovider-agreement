@@ -1,5 +1,6 @@
 // npm run export:unsigned                 -> reports/provider-agreement-status-<date>.xlsx
 // npm run export:unsigned -- --run 4      -> use a specific backfill run for the GHL history
+// npm run export:unsigned -- --skip-non-provider-ghl -> list non-provider customers without GHL lookups (faster)
 // READ-ONLY (Shopify, GHL and the database). The workbook contains customer names and emails:
 // it is written under reports/ (git-ignored). The console prints counts only.
 import { mkdir } from 'node:fs/promises';
@@ -8,11 +9,12 @@ import { loadConfig, requireKeys } from '../config.js';
 import { createPgDb } from '../db.js';
 import { normalizeEmail } from '../domain/identity.js';
 import { createGhlClient } from '../ghl/client.js';
-import { buildExport, latestRun, loadDbFacts, STATUS } from '../report/unsigned-export.js';
+import { buildExport, latestRun, loadDbFacts, NON_PROVIDER_STATUS, STATUS } from '../report/unsigned-export.js';
 import { createShopifyAdmin } from '../shopify/admin.js';
 
 const args = process.argv.slice(2);
 const runArg = args.includes('--run') ? args[args.indexOf('--run') + 1] : null;
+const checkNonProviders = !args.includes('--skip-non-provider-ghl');
 const cfg = loadConfig();
 requireKeys(cfg, ['databaseUrl', 'shopify.shop', 'shopify.clientSecret', 'ghl.token', 'ghl.locationId']);
 const db = createPgDb(cfg.databaseUrl);
@@ -128,10 +130,11 @@ try {
     lookupContacts,
     getContact,
     links: urls,
-    onProgress: (n, total) => err(`\rProviders checked in GHL: ${n}/${total}`),
+    checkNonProviders,
+    onProgress: (n, total) => err(`\rCustomers checked in GHL: ${n}/${total}`),
   });
   err('\n');
-  const { counts, byStatus } = result;
+  const { counts, byStatus, nonProviderByStatus } = result;
 
   const wb = new ExcelJS.Workbook();
   const today = new Date().toISOString().slice(0, 10);
@@ -156,20 +159,17 @@ try {
     ...Object.entries(STATUS).map(([k, label]) => [`  ${label}`, byStatus[k]]),
     [],
     ['Signed in GHL but could not be written (review sheet rows)', result.review.length],
+    [],
+    ['Customers WITHOUT the provider tag', counts.nonProviders],
+    ...Object.entries(NON_PROVIDER_STATUS).map(([k, label]) => [`  ${label}`, nonProviderByStatus[k]]),
   ];
   const ws = wb.addWorksheet('Summary');
   ws.columns = [{ width: 62 }, { width: 24 }];
   for (const r of summary) ws.addRow(r);
   ws.getColumn(1).font = { bold: false };
-  for (const n of [5, 11, 17]) ws.getRow(n).font = { bold: true };
+  for (const n of [5, 11, 17, 21 + Object.keys(STATUS).length]) ws.getRow(n).font = { bold: true };
 
-  addSheet(
-    wb,
-    'Providers not filled',
-    [
-      ['status', 'Status', 38],
-      ['action', 'Suggested action', 60],
-      ...CUSTOMER_COLS,
+  const GHL_COLS = [
       ['metafield', 'Metafield value', 14],
       ['ghlContacts', 'GHL contacts with email', 12],
       ['ghlContactId', 'GHL contact ID', 26],
@@ -184,9 +184,12 @@ try {
       ['backfillReason', 'Backfill reason', 28],
       ['signedAt', 'Signed in GHL on', 14],
       ['ghlLink', 'GHL contact', 12],
-    ],
-    result.notFilled,
-  );
+  ];
+  const statusCols = [
+    ['status', 'Status', 42],
+    ['action', 'Suggested action', 60],
+  ];
+  addSheet(wb, 'Providers not filled', [...statusCols, ...CUSTOMER_COLS, ...GHL_COLS], result.notFilled);
   addSheet(
     wb,
     'Signed - needs review',
@@ -203,12 +206,12 @@ try {
     ],
     result.review,
   );
-  addSheet(wb, 'Signed - not provider tag', CUSTOMER_COLS, result.filledNotProvider);
+  addSheet(wb, 'Not provider tag', [...statusCols, ...CUSTOMER_COLS, ...GHL_COLS], result.nonProviders);
 
   await mkdir('reports', { recursive: true });
   const file = `reports/provider-agreement-status-${today}.xlsx`;
   await wb.xlsx.writeFile(file);
-  console.log(JSON.stringify({ file, runId: String(run.id), counts, notFilledByStatus: byStatus, reviewRows: result.review.length }, null, 2));
+  console.log(JSON.stringify({ file, runId: String(run.id), counts, notFilledByStatus: byStatus, nonProviderByStatus, reviewRows: result.review.length }, null, 2));
 } catch (e) {
   console.error(e.message);
   process.exitCode = 1;

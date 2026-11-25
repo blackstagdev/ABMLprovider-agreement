@@ -86,25 +86,47 @@ export function classify(customer, contacts, facts) {
 
 export const isProvider = (customer, providerTags) => (customer.tags ?? []).some((t) => providerTags.includes(t));
 
+export const NON_PROVIDER_STATUS = {
+  signed: 'Signed agreement, missing wholesale tag',
+  sent_not_signed: 'Agreement sent in GHL, not signed (applicant?)',
+  no_agreement: 'In GHL, no agreement sent (likely lead/retail)',
+  no_ghl_contact: 'Not in GHL (likely retail)',
+  no_email: 'Shopify customer has no email',
+  lookup_failed: 'GHL search failed for this email',
+  not_checked: 'Not checked in GHL',
+};
+
+export const NON_PROVIDER_ACTION = {
+  signed: 'If they are an approved provider, add the wholesale tag in Shopify.',
+  sent_not_signed: 'Check whether this applicant was approved; if so, add the wholesale tag.',
+  no_agreement: 'No action unless they should be a provider.',
+  no_ghl_contact: 'No action unless they should be a provider.',
+  no_email: 'No action unless they should be a provider.',
+  lookup_failed: 'Check the Shopify email (likely malformed).',
+  not_checked: 'Re-run without --skip-non-provider-ghl for details.',
+};
+
 /**
  * Build all sheet rows. `lookupContacts(customer)` returns the GHL contacts for a customer
  * (raw GHL contact objects with id/email/phone/firstName/lastName/tags/dateAdded).
+ * Non-provider customers are listed too; `checkNonProviders: false` skips their GHL lookups.
  */
-export async function buildExport({ customers, facts, providerTags, lookupContacts, getContact, links: urls, onProgress = () => {} }) {
+export async function buildExport({ customers, facts, providerTags, lookupContacts, getContact, links: urls, checkNonProviders = true, onProgress = () => {} }) {
   const notFilled = [];
-  const filledNotProvider = [];
-  const counts = { customers: 0, signedTrue: 0, providers: 0, providerTrue: 0, providerFalse: 0, providerMissing: 0, signedNotProvider: 0 };
+  const nonProviders = [];
+  const counts = { customers: 0, signedTrue: 0, providers: 0, providerTrue: 0, providerFalse: 0, providerMissing: 0, nonProviders: 0, signedNotProvider: 0 };
   const byStatus = Object.fromEntries(Object.keys(STATUS).map((k) => [k, 0]));
+  const nonProviderByStatus = Object.fromEntries(Object.keys(NON_PROVIDER_STATUS).map((k) => [k, 0]));
   const byEmail = new Map();
 
   const unfilled = [];
+  const others = [];
   for (const c of customers) {
     counts.customers++;
     const e = normalizeEmail(c.email);
     if (e) byEmail.set(e, [...(byEmail.get(e) ?? []), c]);
-    const provider = isProvider(c, providerTags);
     if (c.signed === true) counts.signedTrue++;
-    if (provider) {
+    if (isProvider(c, providerTags)) {
       counts.providers++;
       if (c.signed === true) counts.providerTrue++;
       else {
@@ -112,49 +134,80 @@ export async function buildExport({ customers, facts, providerTags, lookupContac
         else counts.providerMissing++;
         unfilled.push(c);
       }
-    } else if (c.signed === true) {
-      counts.signedNotProvider++;
-      filledNotProvider.push(customerColumns(c, urls));
+    } else {
+      counts.nonProviders++;
+      if (c.signed === true) counts.signedNotProvider++;
+      others.push(c);
     }
   }
 
-  let done = 0;
-  for (const c of unfilled) {
+  // GHL contacts + agreement history for one customer.
+  async function ghlFacts(c) {
     const linked = facts.links.get(c.id);
     let contacts = [];
-    let lookupFailed = false;
+    let failed = false;
     try {
       contacts = linked ? [(await getContact(linked)) ?? { id: linked }] : await lookupContacts(c);
     } catch {
-      lookupFailed = true; // e.g. GHL 400 on a malformed email; keep going
+      failed = true; // e.g. GHL 400 on a malformed email; keep going
     }
-    const status = lookupFailed ? 'lookup_failed' : classify(c, contacts, facts);
-    byStatus[status]++;
     const f = contacts.map((x) => facts.byContact.get(x.id)).filter(Boolean);
     const main = contacts[0] ?? null;
     const sig = contacts.map((x) => facts.signatures.get(x.id)).find(Boolean);
-    notFilled.push({
-      status: STATUS[status],
-      action: ACTION[status],
-      ...customerColumns(c, urls),
-      metafield: c.signed === false ? 'false' : 'not set',
-      ghlContacts: contacts.length,
-      ghlContactId: contacts.map((x) => x.id).join(', '),
-      ghlName: main ? [main.firstName, main.lastName].filter(Boolean).join(' ') : '',
-      ghlEmail: main?.email ?? '',
-      ghlPhone: main?.phone ?? '',
-      ghlTags: (main?.tags ?? []).join(', '),
-      ghlAdded: dateOnly(main?.dateAdded),
-      invitations: f.reduce((n, x) => n + x.invitations, 0),
-      lastDocumentId: f.map((x) => x.lastDocumentId).filter(Boolean).sort().pop() ?? '',
-      backfillOutcome: f.map((x) => x.best).filter(Boolean).join(', '),
-      backfillReason: f.map((x) => x.bestReason).filter(Boolean).join(', '),
-      signedAt: dateOnly(sig?.signed_at),
-      ghlLink: main ? urls.ghlContact(main.id) : '',
-    });
-    if (++done % 100 === 0) onProgress(done, unfilled.length);
+    return {
+      failed,
+      contacts,
+      columns: {
+        metafield: c.signed === true ? 'true' : c.signed === false ? 'false' : 'not set',
+        ghlContacts: contacts.length,
+        ghlContactId: contacts.map((x) => x.id).join(', '),
+        ghlName: main ? [main.firstName, main.lastName].filter(Boolean).join(' ') : '',
+        ghlEmail: main?.email ?? '',
+        ghlPhone: main?.phone ?? '',
+        ghlTags: (main?.tags ?? []).join(', '),
+        ghlAdded: dateOnly(main?.dateAdded),
+        invitations: f.reduce((n, x) => n + x.invitations, 0),
+        lastDocumentId: f.map((x) => x.lastDocumentId).filter(Boolean).sort().pop() ?? '',
+        backfillOutcome: f.map((x) => x.best).filter(Boolean).join(', '),
+        backfillReason: f.map((x) => x.bestReason).filter(Boolean).join(', '),
+        signedAt: dateOnly(sig?.signed_at),
+        ghlLink: main ? urls.ghlContact(main.id) : '',
+      },
+    };
   }
-  onProgress(done, unfilled.length);
+
+  const total = unfilled.length + (checkNonProviders ? others.length : 0);
+  let done = 0;
+  const tick = () => {
+    if (++done % 100 === 0) onProgress(done, total);
+  };
+
+  for (const c of unfilled) {
+    const g = await ghlFacts(c);
+    const status = g.failed ? 'lookup_failed' : classify(c, g.contacts, facts);
+    byStatus[status]++;
+    notFilled.push({ status: STATUS[status], action: ACTION[status], ...customerColumns(c, urls), ...g.columns });
+    tick();
+  }
+
+  for (const c of others) {
+    let key;
+    let columns = { metafield: c.signed === true ? 'true' : c.signed === false ? 'false' : 'not set' };
+    if (!checkNonProviders) key = c.signed === true ? 'signed' : 'not_checked';
+    else {
+      const g = await ghlFacts(c);
+      columns = g.columns;
+      if (g.failed) key = 'lookup_failed';
+      else {
+        const k = classify(c, g.contacts, facts);
+        key = c.signed === true || k === 'signed_not_applied' || k === 'needs_review' ? 'signed' : k;
+      }
+      tick();
+    }
+    nonProviderByStatus[key]++;
+    nonProviders.push({ status: NON_PROVIDER_STATUS[key], action: NON_PROVIDER_ACTION[key], ...customerColumns(c, urls), ...columns });
+  }
+  onProgress(done, total);
 
   const review = [];
   for (const r of facts.review) {
@@ -173,8 +226,10 @@ export async function buildExport({ customers, facts, providerTags, lookupContac
     });
   }
 
-  notFilled.sort((a, b) => a.status.localeCompare(b.status) || a.email.localeCompare(b.email));
-  return { counts, byStatus, notFilled, filledNotProvider, review };
+  const byStatusThenEmail = (a, b) => a.status.localeCompare(b.status) || a.email.localeCompare(b.email);
+  notFilled.sort(byStatusThenEmail);
+  nonProviders.sort(byStatusThenEmail);
+  return { counts, byStatus, nonProviderByStatus, notFilled, nonProviders, review };
 }
 
 const REVIEW_HELP = {

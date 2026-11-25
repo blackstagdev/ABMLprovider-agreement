@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildExport, latestRun, loadDbFacts, STATUS } from '../src/report/unsigned-export.js';
+import { buildExport, latestRun, loadDbFacts, NON_PROVIDER_STATUS, STATUS } from '../src/report/unsigned-export.js';
 import { newDb } from './helpers.js';
 
 async function seed(db) {
@@ -55,7 +55,7 @@ test('export classifies unfilled providers and counts filled customers', async (
     links: { shopifyCustomer: (id) => `s/${id}`, ghlContact: (id) => `g/${id}` },
   });
 
-  assert.deepEqual(r.counts, { customers: 9, signedTrue: 2, providers: 7, providerTrue: 1, providerFalse: 1, providerMissing: 5, signedNotProvider: 1 });
+  assert.deepEqual(r.counts, { customers: 9, signedTrue: 2, providers: 7, providerTrue: 1, providerFalse: 1, providerMissing: 5, nonProviders: 2, signedNotProvider: 1 });
   assert.equal(r.byStatus.lookup_failed, 1);
   const status = Object.fromEntries(r.notFilled.map((x) => [x.shopifyCustomerId, x.status]));
   assert.equal(status['2'], STATUS.sent_not_signed);
@@ -64,7 +64,9 @@ test('export classifies unfilled providers and counts filled customers', async (
   assert.equal(status['5'], STATUS.no_ghl_contact);
   assert.equal(status['6'], STATUS.no_email);
   assert.equal(r.notFilled.find((x) => x.shopifyCustomerId === '2').invitations, 2);
-  assert.equal(r.filledNotProvider[0].shopifyCustomerId, '8');
+  const np = Object.fromEntries(r.nonProviders.map((x) => [x.shopifyCustomerId, x.status]));
+  assert.deepEqual(np, { 7: NON_PROVIDER_STATUS.no_ghl_contact, 8: NON_PROVIDER_STATUS.signed });
+  assert.equal(r.nonProviderByStatus.signed, 1);
   assert.deepEqual(r.review.map((x) => x.reason), ['shared_email_in_ghl', 'no_shopify_customer']);
   assert.equal(r.review[0].ghlName, '(contact deleted in GHL)');
 });
