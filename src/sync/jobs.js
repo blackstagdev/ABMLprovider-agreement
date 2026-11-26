@@ -66,7 +66,7 @@ export async function runOneJob(jobs, handlers) {
     if (!handler) throw new Error(`No handler for job type ${job.type}`);
     const result = await handler(job.payload);
     await jobs.complete(job.id);
-    log.info('job done', { id: job.id, type: job.type, outcome: result?.outcome });
+    log.info('job done', { id: job.id, type: job.type, outcome: result?.outcome, reason: result?.reason });
   } catch (err) {
     const final = await jobs.fail(job, err);
     log[final ? 'error' : 'warn']('job failed', { id: job.id, type: job.type, attempt: job.attempts, final, err });

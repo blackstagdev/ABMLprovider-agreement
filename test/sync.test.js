@@ -88,6 +88,20 @@ test('GHL workflow event -> verified against GHL -> true, then pending tag remov
   assert.equal(m.source, 'workflow_event');
 });
 
+test('workflow event: falls back to a date scan when GHL search does not match emails', async () => {
+  const ctx = await setup({ SHOPIFY_WRITES_ENABLED: 'true' });
+  ctx.ghlClient.queryMatchesEmail = false;
+  await seedProvider(ctx, 30, 'c30', 'p30@x.test');
+  const recent = new Date(Date.now() - 20 * 86400_000).toISOString(); // outside 14d, inside 120d
+  ctx.ghlClient.docs.push(makeDoc({ id: 'd30', contactId: 'c30', email: 'p30@x.test', createdAt: recent, ...SIGNED }));
+
+  const docs = await ctx.sync.documentsForContact('c30', 'p30@x.test');
+  assert.equal(docs.via, 'date_scan_120d');
+  await ghlEvent(ctx, { contact_id: 'c30', location_id: 'loc_1' });
+  await drain(ctx);
+  assert.equal(ctx.shopify.customers.get(gid(30)).signed, true);
+});
+
 test('workflow event is only a hint: an unsigned recipient is not granted access', async () => {
   const ctx = await setup();
   await seedProvider(ctx, 13, 'c13', 'p13@x.test');

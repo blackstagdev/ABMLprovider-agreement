@@ -59,7 +59,7 @@ export function fakeGhlClient() {
       let list = docs.filter((d) => !d._hidden);
       if (query) {
         const q = query.toLowerCase();
-        list = list.filter((d) => d.name.toLowerCase().includes(q) || d.recipients.some((r) => (r.email || '').toLowerCase() === q));
+        list = list.filter((d) => d.name.toLowerCase().includes(q) || (this.queryMatchesEmail !== false && d.recipients.some((r) => (r.email || '').toLowerCase() === q)));
       }
       if (dateFrom && dateTo) list = list.filter((d) => d.createdAt >= dateFrom && d.createdAt < dateTo);
       if (status) list = list.filter((d) => status.split(',').includes(d.status));

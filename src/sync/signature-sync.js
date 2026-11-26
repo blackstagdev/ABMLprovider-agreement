@@ -33,6 +33,28 @@ export function createSignatureSync({ db, ghl, shopify, cfg, enqueue = async () 
     return result;
   }
 
+  const hasRecipient = (contactId) => (d) => (d.recipients ?? []).some((r) => (r.contactId || r.id) === contactId);
+
+  /**
+   * This contact's documents. First GHL's `query` search by email (cheap); if that finds none for
+   * the contact (the search may not match recipient emails, or the email changed), scan documents
+   * by date: the recent window, then the deep window. Matching is always by recipient contact ID.
+   * @returns {Promise<object[]> & {via?: string}}
+   */
+  async function documentsForContact(contactId, email, { now = new Date() } = {}) {
+    const byEmail = email ? (await ghl.documentsForEmail(email)).filter(hasRecipient(contactId)) : [];
+    if (byEmail.length) return Object.assign(byEmail, { via: 'email_search' });
+    for (const days of [cfg.ghl.recentLookbackDays, cfg.ghl.deepLookbackDays]) {
+      const from = new Date(now.getTime() - days * 86400_000);
+      const found = [];
+      for await (const page of ghl.pages({ dateFrom: from.toISOString(), dateTo: now.toISOString(), pageSize: cfg.ghl.pageSize })) {
+        found.push(...page.documents.filter(hasRecipient(contactId)));
+      }
+      if (found.length) return Object.assign(found, { via: `date_scan_${days}d` });
+    }
+    return Object.assign([], { via: 'none' });
+  }
+
   /** Evaluate a batch of documents, returning per-signer results with mapping lookups applied. */
   async function evaluateDocs(q, docs) {
     const mappings = await repo.loadMappings(q, docs.map(documentId).filter(Boolean));
@@ -115,9 +137,7 @@ export function createSignatureSync({ db, ghl, shopify, cfg, enqueue = async () 
     const contact = await ghl.getContact(contactId);
     if (!contact) return { signed: false, reason: 'contact_not_found' };
     if (!contact.email) return { signed: false, reason: 'contact_has_no_email' };
-    const docs = (await ghl.documentsForEmail(contact.email)).filter((d) =>
-      (d.recipients ?? []).some((r) => (r.contactId || r.id) === contactId),
-    );
+    const docs = await documentsForContact(contactId, contact.email);
 
     if (source === 'workflow_event') {
       for (const d of docs) {
@@ -137,7 +157,7 @@ export function createSignatureSync({ db, ghl, shopify, cfg, enqueue = async () 
         if (!best || s.signedAt < best.signedAt) best = s;
       }
     }
-    if (!best) return { signed: false, reason: 'no_verified_signature' };
+    if (!best) return { signed: false, reason: `no_verified_signature (${docs.length} documents for contact, via ${docs.via})` };
     await repo.recordSignature(db, best);
     return { signed: true, signature: best };
   }
@@ -294,6 +314,7 @@ export function createSignatureSync({ db, ghl, shopify, cfg, enqueue = async () 
     applySigned,
     verifyContact,
     syncContact,
+    documentsForContact,
     initCustomer,
     cleanupTag,
     resolveContact,
