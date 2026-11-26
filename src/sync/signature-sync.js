@@ -304,7 +304,7 @@ export function createSignatureSync({ db, ghl, shopify, cfg, enqueue = async () 
   }
 
   async function requestResend(customerId) {
-    const { mode, tag, cooldownHours } = cfg.recovery;
+    const { mode, tag, cooldownMinutes } = cfg.recovery;
     if (mode !== 'tag') return { status: 'unavailable' };
     const customer = await shopify.getCustomer(customerId);
     if (!customer || !isProvider(customer, providerTags)) return { status: 'unavailable' };
@@ -313,9 +313,9 @@ export function createSignatureSync({ db, ghl, shopify, cfg, enqueue = async () 
     const r = await db.query(
       `INSERT INTO resend_requests (ghl_contact_id, status) VALUES ($1, 'requested')
        ON CONFLICT (ghl_contact_id) DO UPDATE SET requested_at = now(), status = 'requested'
-       WHERE resend_requests.requested_at < now() - ($2 || ' hours')::interval
+       WHERE resend_requests.requested_at < now() - ($2 || ' minutes')::interval
        RETURNING ghl_contact_id`,
-      [contact.contactId, String(cooldownHours)],
+      [contact.contactId, String(cooldownMinutes)],
     );
     if (!r.rows.length) return { status: 'already_requested' };
     try {

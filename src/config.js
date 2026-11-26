@@ -53,7 +53,9 @@ export function loadConfig(env = process.env) {
     recovery: {
       mode: env.RECOVERY_MODE || 'tag', // 'tag' (GHL workflow re-sends) | 'none'
       tag: env.RECOVERY_TAG || 'provider-agreement-resend',
-      cooldownHours: int(env.RECOVERY_COOLDOWN_HOURS, 24),
+      // Minutes between provider-initiated resends. RECOVERY_COOLDOWN_MINUTES wins; the older
+      // RECOVERY_COOLDOWN_HOURS is still honoured if it is the only one set. 0 = no limit.
+      cooldownMinutes: env.RECOVERY_COOLDOWN_MINUTES ? int(env.RECOVERY_COOLDOWN_MINUTES, 15) : env.RECOVERY_COOLDOWN_HOURS ? int(env.RECOVERY_COOLDOWN_HOURS, 0) * 60 : 15,
       dripDelayMinutes: int(env.ONBOARDING_DRIP_DELAY_MINUTES, 60),
       supportEmail: env.SUPPORT_EMAIL || 'support@alphabiomedlabs.com',
     },
