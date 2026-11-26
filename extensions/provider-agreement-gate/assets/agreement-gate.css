@@ -1,7 +1,7 @@
 /* Provider agreement modal. Uses the Refresh theme's CSS custom properties (layout/theme.liquid)
    and its .button / .button--primary / .button--secondary classes, with fallbacks matching the
    exported settings (scheme-1: #ffffff bg, #122f54 text, #2861a9 buttons; Archivo/Questrial). */
-.abm-ag[hidden] { display: none !important; }
+.abm-ag[hidden], .abm-ag [hidden] { display: none !important; }
 .abm-ag {
   position: fixed; inset: 0; z-index: 2147483000;
   display: flex; align-items: center; justify-content: center;

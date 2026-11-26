@@ -238,3 +238,16 @@ test('open invitation without a signing link: sign-from-email guidance, still po
   await api.recheck(true);
   assert.deepEqual(submits, ['checkout']);
 });
+
+test('Liquid-escaped translations are shown as plain text (I&#39;ve -> I\'ve)', async () => {
+  const { window, doc } = setupDom({ text: { ...text, checkAgain: 'I&#39;ve signed &mdash; check again' } });
+  click(window, doc.getElementById('checkout'));
+  await tick(10);
+  const labels = [...modal(doc).querySelectorAll('button')].map((b) => b.textContent);
+  assert.ok(labels.includes('I\'ve signed — check again'), labels.join(' | '));
+});
+
+test('stylesheet hides [hidden] buttons inside the modal even when the theme styles .button', async () => {
+  const css = await readFile(new URL('../extensions/provider-agreement-gate/assets/agreement-gate.css', import.meta.url), 'utf8');
+  assert.match(css, /\.abm-ag \[hidden\][^{]*\{\s*display:\s*none !important/);
+});

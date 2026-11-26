@@ -47,6 +47,12 @@
     var fetchImpl = (overrides && overrides.fetch) || win.fetch.bind(win);
     var navigate = (overrides && overrides.navigate) || function (href) { win.location.assign(href); };
     var t = cfg.text;
+    // Liquid's `t` filter HTML-escapes translations (I&#39;ve); decode once since we use textContent.
+    var dec = doc.createElement('textarea');
+    for (var k in t) {
+      dec.innerHTML = t[k];
+      t[k] = dec.value;
+    }
     var state = {
       unlocked: false,
       pending: null, // { kind, el, href }
