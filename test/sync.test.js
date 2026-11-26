@@ -102,6 +102,30 @@ test('workflow event: falls back to a date scan when GHL search does not match e
   assert.equal(ctx.shopify.customers.get(gid(30)).signed, true);
 });
 
+test('workflow event: an agreement created long ago is found by the completed-history scan; light checks stay cheap', async () => {
+  const ctx = await setup();
+  ctx.ghlClient.queryMatchesEmail = false; // live GHL: query search ignores recipient emails
+  await seedProvider(ctx, 31, 'c31', 'p31@x.test');
+  ctx.ghlClient.docs.push(makeDoc({ id: 'd31old', contactId: 'c31', email: 'p31@x.test', createdAt: '2025-03-01T00:00:00.000Z', status: 'completed', ...SIGNED }));
+  ctx.ghlClient.docs.push(makeDoc({ id: 'd31new', contactId: 'c31', email: 'p31@x.test', createdAt: new Date(Date.now() - 86400_000).toISOString() }));
+
+  const light = await ctx.sync.documentsForContact('c31', 'p31@x.test', { depth: 'light' });
+  assert.equal(light.via, 'unsigned_only_light');
+  const full = await ctx.sync.documentsForContact('c31', 'p31@x.test');
+  assert.equal(full.via, 'completed_history_scan');
+  assert.deepEqual(full.map((d) => d._id).sort(), ['d31new', 'd31old']);
+
+  await ghlEvent(ctx, { contact_id: 'c31', location_id: 'loc_1' });
+  await drain(ctx);
+  assert.equal(ctx.shopify.customers.get(gid(31)).signed, true);
+
+  // Once verified, later checks use the recorded signature without calling GHL.
+  const before = ctx.ghlClient.calls.listDocuments;
+  const again = await ctx.sync.syncContact('c31');
+  assert.equal(ctx.ghlClient.calls.listDocuments, before);
+  assert.notEqual(again.outcome, 'not_signed');
+});
+
 test('workflow event is only a hint: an unsigned recipient is not granted access', async () => {
   const ctx = await setup();
   await seedProvider(ctx, 13, 'c13', 'p13@x.test');

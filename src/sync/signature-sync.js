@@ -35,24 +35,38 @@ export function createSignatureSync({ db, ghl, shopify, cfg, enqueue = async () 
 
   const hasRecipient = (contactId) => (d) => (d.recipients ?? []).some((r) => (r.contactId || r.id) === contactId);
 
+  const completedBy = (contactId) => (d) => (d.recipients ?? []).some((r) => (r.contactId || r.id) === contactId && r.hasCompleted);
+
   /**
-   * This contact's documents. First GHL's `query` search by email (cheap); if that finds none for
-   * the contact (the search may not match recipient emails, or the email changed), scan documents
-   * by date: the recent window, then the deep window. Matching is always by recipient contact ID.
-   * @returns {Promise<object[]> & {via?: string}}
+   * This contact's documents, matched by recipient contact ID. Live GHL (2026-11-26): the `query`
+   * search does NOT match recipient emails (0 results for a known signer), so it is only a cheap
+   * first try. Then date scans: the recent window, the deep window, and finally all history
+   * restricted to status=completed (in BACKFILL_WINDOW_DAYS windows). Stops at the first pass that
+   * finds a document this contact completed; unsigned invitations found on the way are kept.
+   * depth 'light' (storefront, init: a few requests) stops after the recent window; 'full'
+   * (GHL workflow event: rare, runs in the background) goes through all passes.
+   * @returns {Promise<object[] & {via: string}>}
    */
-  async function documentsForContact(contactId, email, { now = new Date() } = {}) {
-    const byEmail = email ? (await ghl.documentsForEmail(email)).filter(hasRecipient(contactId)) : [];
-    if (byEmail.length) return Object.assign(byEmail, { via: 'email_search' });
-    for (const days of [cfg.ghl.recentLookbackDays, cfg.ghl.deepLookbackDays]) {
-      const from = new Date(now.getTime() - days * 86400_000);
-      const found = [];
-      for await (const page of ghl.pages({ dateFrom: from.toISOString(), dateTo: now.toISOString(), pageSize: cfg.ghl.pageSize })) {
-        found.push(...page.documents.filter(hasRecipient(contactId)));
-      }
-      if (found.length) return Object.assign(found, { via: `date_scan_${days}d` });
+  async function documentsForContact(contactId, email, { depth = 'full', now = new Date() } = {}) {
+    const found = new Map();
+    const add = (docs) => docs.filter(hasRecipient(contactId)).forEach((d) => found.set(documentId(d), d));
+    const done = (via) => Object.assign([...found.values()], { via });
+    const scan = async (dateFrom, dateTo, status) => {
+      for await (const page of ghl.pages({ dateFrom: dateFrom.toISOString(), dateTo: dateTo.toISOString(), pageSize: cfg.ghl.pageSize, status })) add(page.documents);
+    };
+
+    if (email) add(await ghl.documentsForEmail(email));
+    if ([...found.values()].some(completedBy(contactId))) return done('email_search');
+    for (const days of depth === 'light' ? [cfg.ghl.recentLookbackDays] : [cfg.ghl.recentLookbackDays, cfg.ghl.deepLookbackDays]) {
+      await scan(new Date(now.getTime() - days * 86400_000), now);
+      if ([...found.values()].some(completedBy(contactId))) return done(`date_scan_${days}d`);
     }
-    return Object.assign([], { via: 'none' });
+    if (depth === 'light') return done(found.size ? 'unsigned_only_light' : 'none_light');
+    const step = cfg.backfill.windowDays * 86400_000;
+    for (let from = new Date(cfg.backfill.startDate); from < now; from = new Date(from.getTime() + step)) {
+      await scan(from, new Date(Math.min(now.getTime(), from.getTime() + step)), 'completed');
+    }
+    return done([...found.values()].some(completedBy(contactId)) ? 'completed_history_scan' : found.size ? 'unsigned_only' : 'none');
   }
 
   /** Evaluate a batch of documents, returning per-signer results with mapping lookups applied. */
@@ -133,11 +147,17 @@ export function createSignatureSync({ db, ghl, shopify, cfg, enqueue = async () 
    * source 'workflow_event' = a template-filtered GHL workflow told us this contact completed the
    * agreement; that verifies the document->template link for that contact's completed document.
    */
-  async function verifyContact(contactId, { source = 'check', documentId: hintedDocId = null } = {}) {
+  async function verifyContact(contactId, { source = 'check', documentId: hintedDocId = null, depth = source === 'workflow_event' ? 'full' : 'light' } = {}) {
+    // A signature already verified for this contact is permanent evidence (earliest kept).
+    const known = await repo.signatureByContact(db, contactId);
+    if (known) {
+      const signature = { contactId, documentId: known.document_id, recipientId: known.recipient_id, email: known.email_normalized, signedAt: new Date(known.signed_at).toISOString(), via: known.verified_via, outcome: 'signed' };
+      return { signed: true, signature, reason: 'already_verified' };
+    }
     const contact = await ghl.getContact(contactId);
     if (!contact) return { signed: false, reason: 'contact_not_found' };
     if (!contact.email) return { signed: false, reason: 'contact_has_no_email' };
-    const docs = await documentsForContact(contactId, contact.email);
+    const docs = await documentsForContact(contactId, contact.email, { depth });
 
     if (source === 'workflow_event') {
       for (const d of docs) {
@@ -278,7 +298,7 @@ export function createSignatureSync({ db, ghl, shopify, cfg, enqueue = async () 
     const prefill = { firstName: customer.firstName, lastName: customer.lastName, email: customer.email };
     if (!contact) return { status: 'not_found', prefill };
     const c = await ghl.getContact(contact.contactId);
-    const docs = c?.email ? await ghl.documentsForEmail(c.email) : [];
+    const docs = c?.email ? await documentsForContact(contact.contactId, c.email, { depth: 'light' }) : [];
     const mappings = await repo.loadMappings(db, docs.map(documentId).filter(Boolean));
     return { ...pickActiveInvitation(docs, contact.contactId, agreementCfg, mappings), prefill };
   }
